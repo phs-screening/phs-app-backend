@@ -1,14 +1,99 @@
 {
-  "name": "my-express-backend",
+  "name": "phs-app",
+  "author": "DeviasIO",
+  "licence": "MIT",
   "version": "1.0.0",
-  "description": "A simple Express.js backend application",
-  "main": "src/app.js",
+  "private": false,
   "scripts": {
-    "start": "node src/app.js"
+    "start": "node server/index.js",
+    "dev": "nodemon server/index.js"
+  },
+  "eslintConfig": {
+    "extends": "react-app"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
   },
   "dependencies": {
-    "express": "^4.17.1"
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@mui/icons-material": "^5.14.15",
+    "@mui/lab": "^5.0.0-alpha.136",
+    "@mui/material": "^5.14.15",
+    "@mui/styles": "^6.4.8",
+    "@mui/system": "^7.1.0",
+    "axios": "^1.9.0",
+    "clsx": "^2.1.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.0",
+    "express": "^5.1.0",
+    "formik": "^2.4.6",
+    "history": "^5.3.0",
+    "install": "^0.13.0",
+    "jsonwebtoken": "^9.0.2",
+    "jspdf": "^3.0.1",
+    "jspdf-autotable": "^5.0.2",
+    "lodash": "^4.17.21",
+    "moment": "^2.30.1",
+    "mongodb": "^6.17.0",
+    "npm": "^11.4.1",
+    "nprogress": "^0.2.0",
+    "pdfmake": "^0.2.20",
+    "prop-types": "^15.8.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-feather": "^2.0.10",
+    "react-helmet": "^6.1.0",
+    "react-helmet-async": "^2.0.5",
+    "react-hook-form": "^7.56.4",
+    "react-perfect-scrollbar": "^1.5.8",
+    "react-router": "^7.6.1",
+    "react-router-dom": "^7.6.1",
+    "realm-web": "^2.0.1",
+    "sshpk": "^1.18.0",
+    "stream": "^0.0.3",
+    "tslib": "^2.8.1",
+    "type-fest": "^4.41.0",
+    "uniforms": "^3.10.0",
+    "uniforms-mui": "^3.10.0",
+    "uuid": "^11.1.0",
+    "yup": "^1.6.1"
   },
-  "author": "",
-  "license": "ISC"
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^5.62.0",
+    "@typescript-eslint/parser": "^5.62.0",
+    "@vitejs/plugin-react": "^4.6.0",
+    "eslint": "^8.39.0",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-config-react-app": "^7.0.1",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-jest": "^25.7.0",
+    "eslint-plugin-jsx-a11y": "^6.8.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "nodemon": "^3.1.10",
+    "prettier": "3.5.3",
+    "vite": "^6.3.5"
+  },
+  "description": "Remember to do these:",
+  "main": ".eslintrc.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/phs-screening/phs-app.git"
+  },
+  "keywords": [],
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/phs-screening/phs-app/issues"
+  },
+  "homepage": "https://github.com/phs-screening/phs-app#readme"
 }
