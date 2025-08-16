@@ -283,9 +283,9 @@ app.post('/api/patients', authenticateToken, async (req, res) => {
   } catch (e) {
     return res.status(500).json({ result: false, error: e.message })
   }
-})
+});
 
-// submit forms endpoint
+// submit forms endpoint, also updates forms
 app.post('/api/forms/:formCollection/:patientId', authenticateToken, async (req, res) => {
   const formCollection = req.params.formCollection
   const patientId = parseInt(req.params.patientId)
@@ -311,6 +311,9 @@ app.post('/api/forms/:formCollection/:patientId', authenticateToken, async (req,
     res.status(500).json({ result: false, error: e.message })
   }
 })
+
+// submitFormSpecial
+
 
 // login
 app.post('/api/handleLogin', async (req, res) => {
@@ -414,7 +417,136 @@ app.get('/api/patients/:id/forms/status', authenticateToken, async (req, res) =>
     }
 });
 
-// test
+// delete account
+app.post('/api/deleteAccount', authenticateToken, async (req, res) => {
+    const { username } = req.body;
+    if (!username) return res.status(400).json({ result: false, error: 'Username is required' });
+    try {
+        const db = await getDb();
+        const result = await db.collection('profiles').deleteOne({ username });
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ result: false, error: 'User not found' });
+        }
+        res.json({ result: true, message: 'User deleted successfully' });
+    } catch (e) {
+        res.status(500).json({ result: false, error: e.message });
+    }
+});
+
+// reset password admin version
+app.post('/api/resetPassword', authenticateToken, async (req, res) => {
+    const { username, newPassword } = req.body;
+    if (!username) {
+        return res.status(400).json({ result: false, error: 'Username is required' });
+    }
+    if (!newPassword) {
+        return res.status(400).json({ result: false, error: 'New password is required' });
+    }
+    try {
+        const db = await getDb();
+        // password hashed client side
+        await db.collection('profiles').updateOne(
+          { username }, 
+          { $set: { password: newPassword } 
+        });
+        res.json({ result: true, message: 'Password reset successfully' });
+    } catch (e) {
+        res.status(500).json({ result: false, error: e.message });
+    }
+});
+
+// Form data calls
+// getFormInfo
+app.get('/api/forms/info', authenticateToken, async (req, res) => {
+    res.json({
+      result: true,
+      data: {
+        registrationForm: { key: 'registrationForm', title: 'Registration' },
+        triageForm: { key: 'triageForm', title: 'Triage' },
+        // add others...
+      }
+    })
+});
+
+// getFormStatus
+app.get('/api/forms/status', authenticateToken, async (req, res) => {
+    const id = parseInt(req.params.id, 10)
+    if (Number.isNaN(id)) return res.status(400).json({ result: false, error: 'Bad id' })
+    try {
+      const db = await getDb()
+      const patient = await db.collection('patients').findOne({ queueNo: id })
+      if (!patient) return res.status(404).json({ result: false, error: 'Not found' })
+      // Re‑use existing status builder if you have one; else simple map:
+      const status = Object.fromEntries(
+        Object.entries(patient).filter(([k,v]) => k.endsWith('Form')).map(([k]) => [k, true])
+      )
+      res.json({ result: true, data: status })
+    } catch (e) {
+      res.status(500).json({ result: false, error: e.message })
+    }
+});
+
+// getIndividualFormData
+app.get('/api/users/:id/forms', authenticateToken, async (req, res) => {
+  const id = parseInt(req.params.id, 10)
+  if (Number.isNaN(id)) return res.status(400).json({ result: false, error: 'Bad id' })
+  try {
+    const db = await getDb()
+    const patient = await db.collection('patients').findOne({ queueNo: id })
+    if (!patient) return res.status(404).json({ result: false, error: 'Not found' })
+    const formKeys = Object.keys(patient).filter(k => k.endsWith('Form'))
+    const out = {}
+    for (const fk of formKeys) {
+      const coll = fk
+      const doc = await db.collection(coll).findOne({ _id: id })
+      if (doc) out[fk] = doc
+    }
+    res.json({ result: true, data: out })
+  } catch (e) {
+    res.status(500).json({ result: false, error: e.message })
+  }
+});
+
+// getAllFormData
+app.get('/api/users/:id/forms/:form', authenticateToken, async (req, res) => {
+  const id = parseInt(req.params.id, 10)
+  const form = req.params.form
+  if (Number.isNaN(id) || !form) return res.status(400).json({ result: false, error: 'Bad request' })
+  try {
+    const db = await getDb()
+    const doc = await db.collection(form).findOne({ _id: id })
+    res.json({ result: true, data: doc })
+  } catch (e) {
+    res.status(500).json({ result: false, error: e.message })
+  }
+});
+
+// upsertIndividualFormData
+app.post('/api/users/:id/forms/:form', authenticateToken, async (req, res) => {
+  const id = parseInt(req.params.id, 10)
+  const form = req.params.form
+  const form_data = req.body?.form_data
+  if (Number.isNaN(id) || !form) return res.status(400).json({ result: false, error: 'Bad request' })
+  try {
+    const parsed = typeof form_data === 'string' ? JSON.parse(form_data) : form_data
+    const db = await getDb()
+    await db.collection(form).updateOne(
+      { _id: id },
+      { $set: { ...parsed, _id: id, updatedAt: new Date(), updatedBy: req.user.email },
+        $setOnInsert: { createdAt: new Date(), createdBy: req.user.email } },
+      { upsert: true }
+    )
+    await db.collection('patients').updateOne(
+      { queueNo: id },
+      { $set: { [form]: id } }
+    )
+    res.json({ result: true })
+  } catch (e) {
+    res.status(500).json({ result: false, error: e.message })
+  }
+});
+
+// test, remove when everything is done
 app.get('/api/test-mongo', async (req, res) => {
     try {
         const db = await getDb();
