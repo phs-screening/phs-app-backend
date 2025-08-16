@@ -98,78 +98,63 @@ app.get('/api/getCollection', authenticateToken, async (req, res) => {
   }
 });
 
-// get all patient names
-app.get('/api/patientNames', authenticateToken, async (req, res) => {
-  const collection = req.query.collection;
-  if (!collection) return res.status(400).json({ result: false, error: 'Collection required' });
-  try {
-    const db = await getDb();
-    const data = await db.collection(collection)
-      .find({}, { projection: { initials: 1, _id: 0 } })
-      .toArray();
-    res.json({ result: true, data });
-  } catch (e) {
-    res.status(500).json({ result: false, error: e.message });
-  }
-});
-
 // get saved data
 app.get('/api/savedData', authenticateToken, async (req, res) => {
-  const patientId = req.query.patientId;      
-  const collection = req.query.collectionName;
-  if (!collection) return res.status(400).json({ result: false, error: 'Collection required' });
+  const patientId = parseInt(req.query.patientId, 10)
+  const collection = req.query.collectionName
+  if (!collection || Number.isNaN(patientId)) return res.status(400).json({ result: false, error: 'Bad request' })
   try {
-    const db = await getDb();
-    const data = await db.collection(collection).findOne({ _id: patientId });
-    res.json({ result: true, data });
+    const db = await getDb()
+    const data = await db.collection(collection).findOne({ _id: patientId })
+    res.json({ result: true, data })
   } catch (e) {
-    res.status(500).json({ result: false, error: e.message });
+    res.status(500).json({ result: false, error: e.message })
   }
-});
+})
 
 // Patient by id
 app.get('/api/patients/:id', authenticateToken, async (req, res) => {
-  const id = parseInt(req.params.id);
-  const collection = req.query.collection;
-  if (Number.isNaN(id) || !collection)
-    return res.status(400).json({ result: false, error: 'Bad request' });
+  const id = parseInt(req.params.id, 10)
+  const collection = req.query.collection
+  if (Number.isNaN(id) || !collection) return res.status(400).json({ result: false, error: 'Bad request' })
   try {
-    const db = await getDb();
-    const rec = await db.collection(collection).findOne({ _id: id });
-    res.json({ result: true, data: rec });
+    const db = await getDb()
+    const filter = collection === 'patients' ? { queueNo: id } : { _id: id }
+    const rec = await db.collection(collection).findOne(filter)
+    res.json({ result: true, data: rec })
   } catch (e) {
-    res.status(500).json({ result: false, error: e.message });
+    res.status(500).json({ result: false, error: e.message })
   }
-});
+})
 
 // get patient by name
 app.get('/api/patients/by-initials/:initials', authenticateToken, async (req, res) => {
-  const patientName = req.query.initials;  
-  const collection = req.query.collection;
-  if (!patientName|| !collection)
-    return res.status(400).json({ result: false, error: 'Bad request' });
+  const patientName = req.params.initials
+  const collection = req.query.collection || 'patients'
+  if (!patientName) return res.status(400).json({ result: false, error: 'Bad request' })
   try {
-    const db = await getDb();
-    const rec = await db.collection(collection).findOne({ initials: patientName });
-    res.json({ result: true, data: rec });
+    const db = await getDb()
+    const rec = await db.collection(collection).findOne({ initials: patientName })
+    res.json({ result: true, data: rec })
   } catch (e) {
-    res.status(500).json({ result: false, error: e.message });
+    res.status(500).json({ result: false, error: e.message })
   }
-});
+})
 
 //get saved patient data
 app.get('/api/patientSavedData', authenticateToken, async (req, res) => {
-  const patientId = req.query.patientId;
-  const collection = req.query.collectionName;
-  if (!collection) return res.status(400).json({ result: false, error: 'Collection required' });
+  const patientId = parseInt(req.query.patientId, 10)
+  const collection = req.query.collectionName
+  if (!collection || Number.isNaN(patientId)) return res.status(400).json({ result: false, error: 'Bad request' })
   try {
-    const db = await getDb();
-    const data = await db.collection(collection).findOne({ _id: patientId });
-    res.json({ result: true, data });
+    const db = await getDb()
+    const filter = collection === 'patients' ? { queueNo: patientId } : { _id: patientId }
+    const data = await db.collection(collection).findOne(filter)
+    res.json({ result: true, data })
   } catch (e) {
-    res.status(500).json({ result: false, error: e.message });
+    res.status(500).json({ result: false, error: e.message })
   }
-});
+})
 
 // update phlebotomy counter
 app.post('/api/updatePhlebotomyCounter', authenticateToken, async (req, res) => {
@@ -224,6 +209,8 @@ app.get('/api/pdfQueue', authenticateToken, async (req, res) => {
     }
 });
 
+
+// Below are all other API endpoints
 /*
 // Pre-register endpoint
 app.post('/api/pre-register', async (req, res) => {
@@ -257,62 +244,73 @@ app.post('/api/pre-register', async (req, res) => {
         res.status(500).json({ result: 'false',  error: err.message });
     }
 });
+*/
+
+// create a new patient
+app.post('/api/patients', authenticateToken, async (req, res) => {
+  try {
+    const {
+      gender,
+      initials,
+      age,
+      preferredLanguage,
+      goingForPhlebotomy
+    } = req.body || {}
+
+    if (!initials) {
+      return res.status(400).json({ result: false, error: 'initials required' })
+    }
+
+    const db = await getDb()
+    const patients = db.collection('patients')
+
+    const last = await patients.find().sort({ queueNo: -1 }).limit(1).toArray()
+    const queueNo = (last[0]?.queueNo || 0) + 1
+
+    const doc = {
+      queueNo,
+      gender: gender ?? '',
+      initials: String(initials).trim(),
+      age: Number.isFinite(Number(age)) ? Number(age) : 0,
+      preferredLanguage: preferredLanguage ?? '',
+      goingForPhlebotomy: goingForPhlebotomy ?? 'No',
+      createdAt: new Date(),
+      createdBy: req.user?.email
+    }
+
+    await patients.insertOne(doc)
+    return res.json({ result: true, data: doc })
+  } catch (e) {
+    return res.status(500).json({ result: false, error: e.message })
+  }
+})
 
 // submit forms endpoint
-app.post('/api/submitForm', async (req, res) => {
-    const { args, patientId, formCollection } = req.body;
-    try { 
-        const db = await getDb('phs');
-        const patients = db.collection('patients');
-        const registrationForms = db.collection('formCollection');
-        const record2 = await patients.findOne({ queueNo: patientId });
-
-        let qNum = 0;
-
-        let gender = args.registrationQ5;
-        let initials = args.registrationQ6;
-        let age = args.registrationQ4;
-        let preferredLanguage = args.registrationQ14;
-        let goingForPhlebotomy = args.registrationQ15;
-        
-        let data = {
-            gender: gender,
-            initials: initials,
-            age: age,
-            preferredLanguage: preferredLanguage,
-            goingForPhlebotomy: goingForPhlebotomy,
-        }
-
-        console.log('patient id: ' + patientId);
-
-        if (record2 == null) {
-            qNum = await db.collection('patients').countDocuments() + 1; 
-            await patients.insertOne({ queueNo: qNum, ...data });
-            patientId = qNum;
-        }
-
-        const record = await patients.findOne({ queueNo: patientId });
-
-        if (record) {
-            if (record[formCollection] == undefined) {
-                await patients.updateOne(
-                    { queueNo: patientId },
-                    { $set: { [formCollection]: patientId} }
-                )
-                await registrationForms.insertOne({
-                    _id: patientId,
-                    ...args,
-                })
-
-                await updateAllStationCounts(patientId)
-            }
-        }
-
-    } catch (err) {
-        return { result: 'false', error: err.message };
-    }
-});
-*/
+app.post('/api/forms/:formCollection/:patientId', authenticateToken, async (req, res) => {
+  const formCollection = req.params.formCollection
+  const patientId = parseInt(req.params.patientId)
+  const payload = req.body?.data || {}
+  if (Number.isNaN(patientId)) return res.status(400).json({ result: false, error: 'Invalid patient id' })
+  try {
+    const db = await getDb()
+    await db.collection(formCollection).updateOne(
+      { _id: patientId },
+      {
+        $set: { ...payload, _id: patientId, updatedAt: new Date(), updatedBy: req.user.email },
+        $setOnInsert: { createdAt: new Date(), createdBy: req.user.email },
+      },
+      { upsert: true }
+    )
+    // Mark on patients that this form exists (optional)
+    await db.collection('patients').updateOne(
+      { queueNo: patientId },
+      { $set: { [formCollection]: patientId } }
+    )
+    res.json({ result: true })
+  } catch (e) {
+    res.status(500).json({ result: false, error: e.message })
+  }
+})
 
 // login
 app.post('/api/handleLogin', async (req, res) => {
@@ -395,6 +393,26 @@ app.post('/api/handleSignup', async (req, res) => {
     }
 })
 
+
+// PatientTimeline.jsx
+// Create form status
+app.get('/api/patients/:id/forms/status', authenticateToken, async (req, res) => {
+    const patientId = parseInt(req.params.id, 10) // parse to number
+    if (Number.isNaN(patientId)) {
+      return res.status(400).json({ result: false, error: 'Invalid patient id' })
+    }
+    try {
+      const db = await getDb()
+      const patient = await db.collection('patients').findOne({ queueNo: patientId })
+      if (!patient) {
+        return res.status(404).json({ result: false, error: 'Patient not found' })
+      }
+      const status = buildStatusFromPatient(patient)
+      res.json({ result: true, data: status })
+    } catch (e) {
+      res.status(500).json({ result: false, error: e.message })
+    }
+});
 
 // test
 app.get('/api/test-mongo', async (req, res) => {
