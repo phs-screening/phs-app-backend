@@ -1,11 +1,9 @@
 //const { updateAllStationCounts } = require('../src/services/stationCounts');
 const { hashPassword } = require('../functions/hash.cjs');
 
-
 const express = require('express');
 const cors = require('cors');
 const { MongoClient } = require('mongodb');
-const { result, last } = require('lodash');
 const e = require('express');
 require('dotenv').config();
 
@@ -13,8 +11,15 @@ const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'access';
 
+// TODO: Create backend routes to organise the API endpoints by function
+// e.g., auth.js, forms.js
+
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:5173',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true
+}));
 app.use(express.json());
 
 const uri = process.env.MONGODB_URI;
@@ -41,6 +46,22 @@ function authenticateToken(req, res, next) {
     next();
   });
 }
+
+// Migrated MongoDB Custom App Function
+// gets the next Queue No. when registering a new patient
+app.post('/api/getNextQueueNo', authenticateToken, async (req, res) => {
+  const db = client.db('phs');
+  try {
+    const result = await db.collection('queueCounters').findOneAndUpdate(
+      { _id: 'patients' },
+      { $inc: { seq: 1 } },
+      { returnDocument: 'after', upsert: true }
+    );
+    res.json({ seq: result.value.seq });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // mongoDB.js functions
 // getProfile
@@ -112,7 +133,7 @@ app.get('/api/savedData', authenticateToken, async (req, res) => {
   }
 })
 
-// Patient by id
+// GET a patient by ID number
 app.get('/api/patients/:id', authenticateToken, async (req, res) => {
   const id = parseInt(req.params.id, 10)
   const collection = req.query.collection
@@ -173,8 +194,8 @@ app.post('/api/updatePhlebotomyCounter', authenticateToken, async (req, res) => 
 
 // update station count
 app.post('/api/updateStationCount', authenticateToken, async (req, res) => {
-    const {patientId, 
-        visitedStationCount, 
+    const {patientId,
+        visitedStationCount,
         eligibleStationCount,
         visitedStation,
         eligibleStation} = req.body;
@@ -329,7 +350,6 @@ app.post('/api/handleLogin', async (req, res) => {
             return res.status(401).json({ result: false, error: 'Invalid email or password.' });
         }
         const hashHex = await hashPassword(password);
-        console.log('Login hash:', hashHex);
         if (type === 'Admin') {
             if (user.password !== password) {
                 return res.status(401).json({ result: false, error: 'Invalid email or password.' });
@@ -339,22 +359,22 @@ app.post('/api/handleLogin', async (req, res) => {
                 return res.status(401).json({ result: false, error: 'Invalid email or password.' });
             }
         }
-        
+
         // update the last login time
-        await profiles.updateOne({ username: email }, 
+        await profiles.updateOne({ username: email },
             { $set: { last_login: new Date() } }
         );
 
         const token = jwt.sign(
-            { userId: user._id, username: user.username, email: user.email, is_admin: user.is_admin }, 
-            JWT_SECRET, 
+            { userId: user._id, username: user.username, email: user.email, is_admin: user.is_admin },
+            JWT_SECRET,
             { expiresIn: '8h' }
         );
 
         res.json({ result: true, message: 'Login successful.', user, token });
 
     } catch (err) {
-        console.error('Login error:', err); // Debug log
+        console.error('Login error:', err);
         return res.status(500).json({ result: false, error: err.message });
     }
 })
@@ -363,20 +383,15 @@ app.post('/api/handleLogin', async (req, res) => {
 // signup
 app.post('/api/handleSignup', async (req, res) => {
     const {email, password} = req.body;
-    console.log('Signup attempt for:', email); // Debug log
-
     if (!email || !password) {
         return res.status(400).json({ result: false, error: 'Email and password are required.' });
     }
     try {
         const db = await getDb();
-        console.log('Database connected'); // Debug log
-
-
         const profiles = db.collection('profiles');
         const existing = await profiles.findOne({ username: email });
         if (existing) {
-            console.log('Email already taken:', email); // Debug log
+            console.log('Email already taken:', email);
             return res.json({ result: false, error: 'Email already taken' });
         }
         const hashHex = await hashPassword(password);
@@ -387,11 +402,11 @@ app.post('/api/handleSignup', async (req, res) => {
             is_admin: false,
             last_login: new Date(),
         });
-        console.log('User inserted with ID:', insertResult.insertedId); 
+        console.log('User inserted with ID:', insertResult.insertedId);
 
         res.json({ result: true, message: 'Account registered successfully.' });
     } catch (err) {
-        console.error('Signup error:', err); 
+        console.error('Signup error:', err);
         return res.status(500).json({ result: false, error: err.message });
     }
 })
@@ -446,8 +461,8 @@ app.post('/api/resetPassword', authenticateToken, async (req, res) => {
         const db = await getDb();
         // password hashed client side
         await db.collection('profiles').updateOne(
-          { username }, 
-          { $set: { password: newPassword } 
+          { username },
+          { $set: { password: newPassword }
         });
         res.json({ result: true, message: 'Password reset successfully' });
     } catch (e) {
@@ -546,7 +561,7 @@ app.post('/api/users/:id/forms/:form', authenticateToken, async (req, res) => {
   }
 });
 
-// test, remove when everything is done
+// test for successful mongodb connection, remove when everything is done
 app.get('/api/test-mongo', async (req, res) => {
     try {
         const db = await getDb();
@@ -561,4 +576,4 @@ app.get('/api/test-mongo', async (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
-}); 
+});
