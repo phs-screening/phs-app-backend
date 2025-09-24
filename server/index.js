@@ -50,7 +50,7 @@ function authenticateToken(req, res, next) {
 // Migrated MongoDB Custom App Function
 // gets the next Queue No. when registering a new patient
 app.post('/api/getNextQueueNo', authenticateToken, async (req, res) => {
-  const db = client.db('phs');
+  const db = await getDb();
   try {
     const result = await db.collection('queueCounters').findOneAndUpdate(
       { _id: 'patients' },
@@ -311,23 +311,79 @@ app.post('/api/forms/:formCollection/:patientId', authenticateToken, async (req,
   const formCollection = req.params.formCollection
   const patientId = parseInt(req.params.patientId)
   const payload = req.body?.data || {}
+
   if (Number.isNaN(patientId)) return res.status(400).json({ result: false, error: 'Invalid patient id' })
+
   try {
     const db = await getDb()
-    await db.collection(formCollection).updateOne(
-      { _id: patientId },
-      {
-        $set: { ...payload, _id: patientId, updatedAt: new Date(), updatedBy: req.user.email },
-        $setOnInsert: { createdAt: new Date(), createdBy: req.user.email },
-      },
-      { upsert: true }
-    )
-    // Mark on patients that this form exists (optional)
-    await db.collection('patients').updateOne(
-      { queueNo: patientId },
-      { $set: { [formCollection]: patientId } }
-    )
-    res.json({ result: true })
+
+    // Check if patient exists
+    const patient = await db.collection('patients').findOne({ queueNo: patientId })
+    if (!patient) {
+      return res.status(404).json({ result: false, error: 'Patient not found' })
+    }
+
+    // Check if form already exists for this patient
+    if (patient[formCollection] === undefined) {
+      // First time form submission - insert new document
+      await db.collection(formCollection).insertOne({ _id: patientId, ...payload })
+
+      // Mark in the patients collection that the form has been successfully submitted
+      await db.collection('patients').updateOne(
+        { queueNo: patientId },
+        { $set: { [formCollection]: patientId } }
+      )
+
+      // If registration form, update patient's initials and age
+      if (formCollection === 'registrationForm') {
+        await db.collection('patients').updateOne(
+          { queueNo: patientId },
+          {
+            $set: {
+              initials: payload.registrationQ2,
+              age: payload.registrationQ4
+            }
+          }
+        )
+      }
+
+      res.json({ result: true })
+    } else {
+      // Form already exists - check if user is admin
+      if (req.user.is_admin) {
+        // Admin can update existing form
+        const updatedPayload = {
+          ...payload,
+          lastEdited: new Date(),
+          lastEditedBy: req.user.email
+        }
+
+        await db.collection(formCollection).updateOne(
+          { _id: patientId },
+          { $set: { ...updatedPayload } }
+        )
+
+        // If registration form, update patient's initials and age
+        if (formCollection === 'registrationForm') {
+          await db.collection('patients').updateOne(
+            { queueNo: patientId },
+            {
+              $set: {
+                initials: payload.registrationQ2,
+                age: payload.registrationQ4
+              }
+            }
+          )
+        }
+
+        res.json({ result: true })
+      } else {
+        // Non-admin cannot update existing form
+        const errorMsg = 'This form has already been submitted. If you need to make any changes, please contact the admin.'
+        return res.status(403).json({ result: false, error: errorMsg })
+      }
+    }
+
   } catch (e) {
     res.status(500).json({ result: false, error: e.message })
   }
