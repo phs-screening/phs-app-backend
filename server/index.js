@@ -28,11 +28,11 @@ const client = new MongoClient(uri);
 let db;
 
 async function getDb() {
-    if (!db) {
-        await client.connect();
-        db = client.db(process.env.DB_NAME);
-    }
-    return db;
+  if (!db) {
+    await client.connect();
+    db = client.db(process.env.DB_NAME);
+  }
+  return db;
 }
 
 // AUTH MIDDLEWARE
@@ -179,55 +179,57 @@ app.get('/api/patientSavedData', authenticateToken, async (req, res) => {
 
 // update phlebotomy counter
 app.post('/api/updatePhlebotomyCounter', authenticateToken, async (req, res) => {
-    const seq = req.body.seq;
-    try {
-        const db = await getDb();
-        await db.collection('queueCounters').updateOne(
-            { _id: 'phlebotomyQ3' },
-            { $set: { seq } }
-        );
-        res.json({ result: true });
-    } catch (e) {
-        res.status(500).json({ result: false, error: e.message });
-    }
+  const seq = req.body.seq;
+  try {
+    const db = await getDb();
+    await db.collection('queueCounters').updateOne(
+      { _id: 'phlebotomyQ3' },
+      { $set: { seq } }
+    );
+    res.json({ result: true });
+  } catch (e) {
+    res.status(500).json({ result: false, error: e.message });
+  }
 });
 
 // update station count
 app.post('/api/updateStationCount', authenticateToken, async (req, res) => {
-    const {patientId,
-        visitedStationCount,
-        eligibleStationCount,
-        visitedStation,
-        eligibleStation} = req.body;
-    if (!patientId || visitedStationCount == null || eligibleStationCount == null) {
-        return res.status(400).json({ result: false, error: 'Function Arguments cannot be undefined.' });
-    }
-    try {
-        const db = await getDb();
-        await db.collection('stationCounts').updateOne(
-            { queueNo: patientId },
-            { $set: {
-                visitedStationCount,
-                eligibleStationCount,
-                visitedStation,
-                eligibleStation
-            }},
-        );
-        res.json({ result: true });
-    } catch (e) {
-        res.status(500).json({ result: false, error: e.message });
-    }
+  const { patientId,
+    visitedStationCount,
+    eligibleStationCount,
+    visitedStation,
+    eligibleStation } = req.body;
+  if (!patientId || visitedStationCount == null || eligibleStationCount == null) {
+    return res.status(400).json({ result: false, error: 'Function Arguments cannot be undefined.' });
+  }
+  try {
+    const db = await getDb();
+    await db.collection('stationCounts').updateOne(
+      { queueNo: patientId },
+      {
+        $set: {
+          visitedStationCount,
+          eligibleStationCount,
+          visitedStation,
+          eligibleStation
+        }
+      },
+    );
+    res.json({ result: true });
+  } catch (e) {
+    res.status(500).json({ result: false, error: e.message });
+  }
 });
 
 // get PDF queue
 app.get('/api/pdfQueue', authenticateToken, async (req, res) => {
-    try {
-        const db = await getDb();
-        const queue = await db.collection('pdfQueue').find({}).toArray();
-        res.json({ result: true, data: queue });
-    } catch (e) {
-        res.status(500).json({ result: false, error: e.message });
-    }
+  try {
+    const db = await getDb();
+    const queue = await db.collection('pdfQueue').find({}).toArray();
+    res.json({ result: true, data: queue });
+  } catch (e) {
+    res.status(500).json({ result: false, error: e.message });
+  }
 });
 
 
@@ -306,7 +308,7 @@ app.post('/api/patients', authenticateToken, async (req, res) => {
   }
 });
 
-// submit forms endpoint, also updates forms
+// submitForm endpoint, also updates forms
 app.post('/api/forms/:formCollection/:patientId', authenticateToken, async (req, res) => {
   const formCollection = req.params.formCollection
   const patientId = parseInt(req.params.patientId)
@@ -323,7 +325,9 @@ app.post('/api/forms/:formCollection/:patientId', authenticateToken, async (req,
       return res.status(404).json({ result: false, error: 'Patient not found' })
     }
 
-    // Check if form already exists for this patient
+    // Check if the form has already been submitted for this patient
+    // If no, submit the form and update the station's collection
+    // If yes, only allow form submission if the user is admin
     if (patient[formCollection] === undefined) {
       // First time form submission - insert new document
       await db.collection(formCollection).insertOne({ _id: patientId, ...payload })
@@ -334,7 +338,7 @@ app.post('/api/forms/:formCollection/:patientId', authenticateToken, async (req,
         { $set: { [formCollection]: patientId } }
       )
 
-      // If registration form, update patient's initials and age
+      // If submitting registration form, update patient's initials and age
       if (formCollection === 'registrationForm') {
         await db.collection('patients').updateOne(
           { queueNo: patientId },
@@ -344,6 +348,18 @@ app.post('/api/forms/:formCollection/:patientId', authenticateToken, async (req,
               age: payload.registrationQ4
             }
           }
+        )
+      }
+
+      // If submitting geriAmtForm, update isEligibleForGrace field in patients collection
+      // This is because geri G-RACE station eligibility is determined in geri AMT form Q12 (Volunteer indicates whether patient is eligible for G-RACE or not)
+      // So after geri AMT based on the isEligibleForGrace field, if the patient is eligible for G-RACE, the app will navigate to G-RACE form
+      // If the patient is not eligible, the app will navigate back to patient dashboard
+      if (formCollection === 'geriAmtForm') {
+        const eligibleForGrace = payload.geriAmtQ12 === 'Yes (Eligible for G-RACE)'
+        await db.collection('patients').updateOne(
+          { queueNo: patientId },
+          { $set: { isEligibleForGrace: eligibleForGrace } }
         )
       }
 
@@ -376,6 +392,18 @@ app.post('/api/forms/:formCollection/:patientId', authenticateToken, async (req,
           )
         }
 
+        // If submitting geriAmtForm, update isEligibleForGrace field in patients collection
+        // This is because geri G-RACE station eligibility is determined in geri AMT form Q12 (Volunteer indicates whether patient is eligible for G-RACE or not)
+        // So after geri AMT based on the isEligibleForGrace field, if the patient is eligible for G-RACE, the app will navigate to G-RACE form
+        // If the patient is not eligible, the app will navigate back to patient dashboard
+        if (formCollection === 'geriAmtForm') {
+          const eligibleForGrace = payload.geriAmtQ12 === 'Yes (Eligible for G-RACE)'
+          await db.collection('patients').updateOne(
+            { queueNo: patientId },
+            { $set: { isEligibleForGrace: eligibleForGrace } }
+          )
+        }
+
         res.json({ result: true })
       } else {
         // Non-admin cannot update existing form
@@ -389,172 +417,170 @@ app.post('/api/forms/:formCollection/:patientId', authenticateToken, async (req,
   }
 })
 
-// submitFormSpecial
-
-
 // login
 app.post('/api/handleLogin', async (req, res) => {
-    const { email, password, type } = req.body;
-    if (!email || !password) {
-        return res.status(400).json({ result: false, error: 'Email and password are required.' });
+  const { email, password, type } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ result: false, error: 'Email and password are required.' });
+  }
+  try {
+    const db = await getDb();
+    const profiles = db.collection('profiles');
+    const user = await profiles.findOne({ username: email });
+    if (!user) {
+      return res.status(401).json({ result: false, error: 'Invalid email or password.' });
     }
-    try {
-        const db = await getDb();
-        const profiles = db.collection('profiles');
-        const user = await profiles.findOne({ username: email });
-        if (!user) {
-            return res.status(401).json({ result: false, error: 'Invalid email or password.' });
-        }
-        const hashHex = await hashPassword(password);
-        if (type === 'Admin') {
-            if (user.password !== password) {
-                return res.status(401).json({ result: false, error: 'Invalid email or password.' });
-            }
-        } else {
-            if (user.password !== hashHex) {
-                return res.status(401).json({ result: false, error: 'Invalid email or password.' });
-            }
-        }
-
-        // update the last login time
-        await profiles.updateOne({ username: email },
-            { $set: { last_login: new Date() } }
-        );
-
-        const token = jwt.sign(
-            { userId: user._id, username: user.username, email: user.email, is_admin: user.is_admin },
-            JWT_SECRET,
-            { expiresIn: '8h' }
-        );
-
-        res.json({ result: true, message: 'Login successful.', user, token });
-
-    } catch (err) {
-        console.error('Login error:', err);
-        return res.status(500).json({ result: false, error: err.message });
+    const hashHex = await hashPassword(password);
+    if (type === 'Admin') {
+      if (user.password !== password) {
+        return res.status(401).json({ result: false, error: 'Invalid email or password.' });
+      }
+    } else {
+      if (user.password !== hashHex) {
+        return res.status(401).json({ result: false, error: 'Invalid email or password.' });
+      }
     }
+
+    // update the last login time
+    await profiles.updateOne({ username: email },
+      { $set: { last_login: new Date() } }
+    );
+
+    const token = jwt.sign(
+      { userId: user._id, username: user.username, email: user.email, is_admin: user.is_admin },
+      JWT_SECRET,
+      { expiresIn: '8h' }
+    );
+
+    res.json({ result: true, message: 'Login successful.', user, token });
+
+  } catch (err) {
+    console.error('Login error:', err);
+    return res.status(500).json({ result: false, error: err.message });
+  }
 })
 
 
 // signup
 app.post('/api/handleSignup', async (req, res) => {
-    const {email, password} = req.body;
-    if (!email || !password) {
-        return res.status(400).json({ result: false, error: 'Email and password are required.' });
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ result: false, error: 'Email and password are required.' });
+  }
+  try {
+    const db = await getDb();
+    const profiles = db.collection('profiles');
+    const existing = await profiles.findOne({ username: email });
+    if (existing) {
+      console.log('Email already taken:', email);
+      return res.json({ result: false, error: 'Email already taken' });
     }
-    try {
-        const db = await getDb();
-        const profiles = db.collection('profiles');
-        const existing = await profiles.findOne({ username: email });
-        if (existing) {
-            console.log('Email already taken:', email);
-            return res.json({ result: false, error: 'Email already taken' });
-        }
-        const hashHex = await hashPassword(password);
-        const insertResult = await profiles.insertOne({
-            username: email,
-            email: email,
-            password: hashHex,
-            is_admin: false,
-            last_login: new Date(),
-        });
-        console.log('User inserted with ID:', insertResult.insertedId);
+    const hashHex = await hashPassword(password);
+    const insertResult = await profiles.insertOne({
+      username: email,
+      email: email,
+      password: hashHex,
+      is_admin: false,
+      last_login: new Date(),
+    });
+    console.log('User inserted with ID:', insertResult.insertedId);
 
-        res.json({ result: true, message: 'Account registered successfully.' });
-    } catch (err) {
-        console.error('Signup error:', err);
-        return res.status(500).json({ result: false, error: err.message });
-    }
+    res.json({ result: true, message: 'Account registered successfully.' });
+  } catch (err) {
+    console.error('Signup error:', err);
+    return res.status(500).json({ result: false, error: err.message });
+  }
 })
 
 
 // PatientTimeline.jsx
 // Create form status
 app.get('/api/patients/:id/forms/status', authenticateToken, async (req, res) => {
-    const patientId = parseInt(req.params.id, 10) // parse to number
-    if (Number.isNaN(patientId)) {
-      return res.status(400).json({ result: false, error: 'Invalid patient id' })
+  const patientId = parseInt(req.params.id, 10) // parse to number
+  if (Number.isNaN(patientId)) {
+    return res.status(400).json({ result: false, error: 'Invalid patient id' })
+  }
+  try {
+    const db = await getDb()
+    const patient = await db.collection('patients').findOne({ queueNo: patientId })
+    if (!patient) {
+      return res.status(404).json({ result: false, error: 'Patient not found' })
     }
-    try {
-      const db = await getDb()
-      const patient = await db.collection('patients').findOne({ queueNo: patientId })
-      if (!patient) {
-        return res.status(404).json({ result: false, error: 'Patient not found' })
-      }
-      const status = buildStatusFromPatient(patient)
-      res.json({ result: true, data: status })
-    } catch (e) {
-      res.status(500).json({ result: false, error: e.message })
-    }
+    const status = buildStatusFromPatient(patient)
+    res.json({ result: true, data: status })
+  } catch (e) {
+    res.status(500).json({ result: false, error: e.message })
+  }
 });
 
 // delete account
 app.post('/api/deleteAccount', authenticateToken, async (req, res) => {
-    const { username } = req.body;
-    if (!username) return res.status(400).json({ result: false, error: 'Username is required' });
-    try {
-        const db = await getDb();
-        const result = await db.collection('profiles').deleteOne({ username });
-        if (result.deletedCount === 0) {
-            return res.status(404).json({ result: false, error: 'User not found' });
-        }
-        res.json({ result: true, message: 'User deleted successfully' });
-    } catch (e) {
-        res.status(500).json({ result: false, error: e.message });
+  const { username } = req.body;
+  if (!username) return res.status(400).json({ result: false, error: 'Username is required' });
+  try {
+    const db = await getDb();
+    const result = await db.collection('profiles').deleteOne({ username });
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ result: false, error: 'User not found' });
     }
+    res.json({ result: true, message: 'User deleted successfully' });
+  } catch (e) {
+    res.status(500).json({ result: false, error: e.message });
+  }
 });
 
 // reset password admin version
 app.post('/api/resetPassword', authenticateToken, async (req, res) => {
-    const { username, newPassword } = req.body;
-    if (!username) {
-        return res.status(400).json({ result: false, error: 'Username is required' });
-    }
-    if (!newPassword) {
-        return res.status(400).json({ result: false, error: 'New password is required' });
-    }
-    try {
-        const db = await getDb();
-        // password hashed client side
-        await db.collection('profiles').updateOne(
-          { username },
-          { $set: { password: newPassword }
-        });
-        res.json({ result: true, message: 'Password reset successfully' });
-    } catch (e) {
-        res.status(500).json({ result: false, error: e.message });
-    }
+  const { username, newPassword } = req.body;
+  if (!username) {
+    return res.status(400).json({ result: false, error: 'Username is required' });
+  }
+  if (!newPassword) {
+    return res.status(400).json({ result: false, error: 'New password is required' });
+  }
+  try {
+    const db = await getDb();
+    // password hashed client side
+    await db.collection('profiles').updateOne(
+      { username },
+      {
+        $set: { password: newPassword }
+      });
+    res.json({ result: true, message: 'Password reset successfully' });
+  } catch (e) {
+    res.status(500).json({ result: false, error: e.message });
+  }
 });
 
 // Form data calls
 // getFormInfo
 app.get('/api/forms/info', authenticateToken, async (req, res) => {
-    res.json({
-      result: true,
-      data: {
-        registrationForm: { key: 'registrationForm', title: 'Registration' },
-        triageForm: { key: 'triageForm', title: 'Triage' },
-        // add others...
-      }
-    })
+  res.json({
+    result: true,
+    data: {
+      registrationForm: { key: 'registrationForm', title: 'Registration' },
+      triageForm: { key: 'triageForm', title: 'Triage' },
+      // add others...
+    }
+  })
 });
 
 // getFormStatus
 app.get('/api/forms/status', authenticateToken, async (req, res) => {
-    const id = parseInt(req.params.id, 10)
-    if (Number.isNaN(id)) return res.status(400).json({ result: false, error: 'Bad id' })
-    try {
-      const db = await getDb()
-      const patient = await db.collection('patients').findOne({ queueNo: id })
-      if (!patient) return res.status(404).json({ result: false, error: 'Not found' })
-      // Re‑use existing status builder if you have one; else simple map:
-      const status = Object.fromEntries(
-        Object.entries(patient).filter(([k,v]) => k.endsWith('Form')).map(([k]) => [k, true])
-      )
-      res.json({ result: true, data: status })
-    } catch (e) {
-      res.status(500).json({ result: false, error: e.message })
-    }
+  const id = parseInt(req.params.id, 10)
+  if (Number.isNaN(id)) return res.status(400).json({ result: false, error: 'Bad id' })
+  try {
+    const db = await getDb()
+    const patient = await db.collection('patients').findOne({ queueNo: id })
+    if (!patient) return res.status(404).json({ result: false, error: 'Not found' })
+    // Re‑use existing status builder if you have one; else simple map:
+    const status = Object.fromEntries(
+      Object.entries(patient).filter(([k, v]) => k.endsWith('Form')).map(([k]) => [k, true])
+    )
+    res.json({ result: true, data: status })
+  } catch (e) {
+    res.status(500).json({ result: false, error: e.message })
+  }
 });
 
 // getIndividualFormData
@@ -603,8 +629,10 @@ app.post('/api/users/:id/forms/:form', authenticateToken, async (req, res) => {
     const db = await getDb()
     await db.collection(form).updateOne(
       { _id: id },
-      { $set: { ...parsed, _id: id, updatedAt: new Date(), updatedBy: req.user.email },
-        $setOnInsert: { createdAt: new Date(), createdBy: req.user.email } },
+      {
+        $set: { ...parsed, _id: id, updatedAt: new Date(), updatedBy: req.user.email },
+        $setOnInsert: { createdAt: new Date(), createdBy: req.user.email }
+      },
       { upsert: true }
     )
     await db.collection('patients').updateOne(
@@ -619,17 +647,17 @@ app.post('/api/users/:id/forms/:form', authenticateToken, async (req, res) => {
 
 // test for successful mongodb connection, remove when everything is done
 app.get('/api/test-mongo', async (req, res) => {
-    try {
-        const db = await getDb();
-        // Try to list collections as a simple test
-        const collections = await db.listCollections().toArray();
-        res.json({ result: true, message: 'MongoDB connection successful!', collections });
-    } catch (err) {
-        res.status(500).json({ result: false, error: err.message });
-    }
+  try {
+    const db = await getDb();
+    // Try to list collections as a simple test
+    const collections = await db.listCollections().toArray();
+    res.json({ result: true, message: 'MongoDB connection successful!', collections });
+  } catch (err) {
+    res.status(500).json({ result: false, error: err.message });
+  }
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
 });
