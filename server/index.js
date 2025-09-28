@@ -3,7 +3,7 @@ const { hashPassword } = require('../functions/hash.cjs');
 
 const express = require('express');
 const cors = require('cors');
-const { MongoClient } = require('mongodb');
+const { MongoClient, ObjectId } = require('mongodb');
 const e = require('express');
 require('dotenv').config();
 
@@ -16,8 +16,8 @@ const JWT_SECRET = process.env.JWT_SECRET || 'access';
 
 const app = express();
 app.use(cors({
-  origin: 'http://localhost:5173',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  origin: 'http://localhost:5173', // TODO: Add deployed frontend URL here when ready
+  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
   credentials: true
 }));
 app.use(express.json());
@@ -177,7 +177,7 @@ app.get('/api/patientSavedData', authenticateToken, async (req, res) => {
   }
 })
 
-// update phlebotomy counter
+// update phlebotomy counter [UNUSED IN 2025 DUE TO NO PHLEBOTOMY STATION]
 app.post('/api/updatePhlebotomyCounter', authenticateToken, async (req, res) => {
   const seq = req.body.seq;
   try {
@@ -192,7 +192,8 @@ app.post('/api/updatePhlebotomyCounter', authenticateToken, async (req, res) => 
   }
 });
 
-// update station count
+// update station count [Implemented in 2025 but unmaintained after adding new stations, currently does not work as intended]
+// To 2026 Devs: Feel free to remove this if not needed
 app.post('/api/updateStationCount', authenticateToken, async (req, res) => {
   const { patientId,
     visitedStationCount,
@@ -221,12 +222,199 @@ app.post('/api/updateStationCount', authenticateToken, async (req, res) => {
   }
 });
 
-// get PDF queue
-app.get('/api/pdfQueue', authenticateToken, async (req, res) => {
+// GET /api/docPdfQueue - returns unprinted documents
+app.get('/api/docPdfQueue', authenticateToken, async (req, res) => {
   try {
     const db = await getDb();
-    const queue = await db.collection('pdfQueue').find({}).toArray();
-    res.json({ result: true, data: queue });
+    const documents = await db.collection('docPdfQueue').find({ printed: false }).toArray();
+    res.json({ result: true, data: documents });
+  } catch (e) {
+    res.status(500).json({ result: false, error: e.message });
+  }
+});
+
+// GET /api/docPdfQueue/printed - returns printed documents
+app.get('/api/docPdfQueue/printed', authenticateToken, async (req, res) => {
+  try {
+    const db = await getDb();
+    const documents = await db.collection('docPdfQueue').find({ printed: true }).toArray();
+    res.json({ result: true, data: documents });
+  } catch (e) {
+    res.status(500).json({ result: false, error: e.message });
+  }
+});
+
+app.post('/api/docPdfQueue', authenticateToken, async (req, res) => {
+  try {
+    const { patientId, doctorName } = req.body;
+
+    if (!patientId) {
+      return res.status(400).json({ result: false, error: 'Patient ID is required' });
+    }
+
+    const db = await getDb();
+
+    // Check if patient already exists in queue
+    const existingEntry = await db.collection('docPdfQueue').findOne({ patientId });
+    if (existingEntry) {
+      return res.json({ result: true, message: 'Patient already in queue' });
+    }
+
+    const doc = {
+      patientId: patientId,
+      doctorName: doctorName || '',
+      printed: false,
+      createdAt: new Date(),
+    };
+
+    await db.collection('docPdfQueue').insertOne(doc);
+    res.json({ result: true });
+  } catch (e) {
+    res.status(500).json({ result: false, error: e.message });
+  }
+});
+
+// PATCH /api/docPdfQueue/:id - mark as printed
+app.patch('/api/docPdfQueue/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await getDb();
+
+    const result = await db.collection('docPdfQueue').updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { printed: true } }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ result: false, error: 'Document not found' });
+    }
+
+    res.json({ result: true });
+  } catch (e) {
+    res.status(500).json({ result: false, error: e.message });
+  }
+});
+
+// DELETE /api/docPdfQueue/:id - remove document from queue
+app.delete('/api/docPdfQueue/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await getDb();
+
+    const result = await db.collection('docPdfQueue').deleteOne({ _id: new ObjectId(id) });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ result: false, error: 'Document not found' });
+    }
+
+    res.json({ result: true });
+  } catch (e) {
+    res.status(500).json({ result: false, error: e.message });
+  }
+});
+
+// FORM A API ENDPOINTS
+
+// GET /api/formAPdfQueue - returns unprinted Form A documents
+app.get('/api/formAPdfQueue', authenticateToken, async (req, res) => {
+  try {
+    const db = await getDb();
+    const documents = await db.collection('formAPdfQueue').find({ printed: false }).toArray();
+    res.json({ result: true, data: documents });
+  } catch (e) {
+    res.status(500).json({ result: false, error: e.message });
+  }
+});
+
+// GET /api/formAPdfQueue/printed - returns printed Form A documents
+app.get('/api/formAPdfQueue/printed', authenticateToken, async (req, res) => {
+  try {
+    const db = await getDb();
+    const documents = await db.collection('formAPdfQueue').find({ printed: true }).toArray();
+    res.json({ result: true, data: documents });
+  } catch (e) {
+    res.status(500).json({ result: false, error: e.message });
+  }
+});
+
+// POST /api/formAPdfQueue - add patient to Form A queue
+app.post('/api/formAPdfQueue', authenticateToken, async (req, res) => {
+  try {
+    const { patientId } = req.body;
+
+    if (!patientId) {
+      return res.status(400).json({ result: false, error: 'Patient ID is required' });
+    }
+
+    const db = await getDb();
+
+    // Check if patient already exists in queue
+    const existingEntry = await db.collection('formAPdfQueue').findOne({ patientId });
+    if (existingEntry) {
+      return res.json({ result: true, message: 'Patient already in queue' });
+    }
+
+    const doc = {
+      patientId: patientId,
+      printed: false,
+      createdAt: new Date(),
+    };
+
+    await db.collection('formAPdfQueue').insertOne(doc);
+    res.json({ result: true });
+  } catch (e) {
+    res.status(500).json({ result: false, error: e.message });
+  }
+});
+
+// PATCH /api/formAPdfQueue/:id - mark Form A as printed
+app.patch('/api/formAPdfQueue/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({
+        result: false,
+        error: `Invalid ObjectId format: ${id}. Expected 24-character hex string.`
+      });
+    }
+
+    const db = await getDb();
+    const result = await db.collection('formAPdfQueue').updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { printed: true } }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ result: false, error: 'Document not found' });
+    }
+
+    res.json({ result: true });
+  } catch (e) {
+    res.status(500).json({ result: false, error: e.message });
+  }
+});
+
+// DELETE /api/formAPdfQueue/:id - remove Form A from queue
+app.delete('/api/formAPdfQueue/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({
+        result: false,
+        error: `Invalid ObjectId format: ${id}. Expected 24-character hex string.`
+      });
+    }
+
+    const db = await getDb();
+    const result = await db.collection('formAPdfQueue').deleteOne({ _id: new ObjectId(id) });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ result: false, error: 'Document not found' });
+    }
+
+    res.json({ result: true });
   } catch (e) {
     res.status(500).json({ result: false, error: e.message });
   }
@@ -234,40 +422,6 @@ app.get('/api/pdfQueue', authenticateToken, async (req, res) => {
 
 
 // Below are all other API endpoints
-/*
-// Pre-register endpoint
-app.post('/api/pre-register', async (req, res) => {
-    const { gender, initials, age, preferredLanguage, goingForPhlebotomy } = req.body;
-    // Basic validation
-    if (
-        gender == null ||
-        initials == null ||
-        age == null ||
-        preferredLanguage == null ||
-        goingForPhlebotomy == null
-    ) {
-        return res.status(400).json({ result: false, error: 'Function Arguments cannot be undefined.' });
-    }
-    if (
-        typeof goingForPhlebotomy === 'string' &&
-        goingForPhlebotomy !== 'Y' &&
-        goingForPhlebotomy !== 'N'
-    ) {
-        return res.status(400).json({ result: false, error: 'The value of goingForPhlebotomy must either be "Y" or "N"' });
-    }
-    try {
-        const db = await getDb('phs');
-        const patients = db.collection('patients');
-
-        const queueNo = await patients.find({ status: 'pre-registered' }).toArray();
-        const patient = { queueNo, ...req.body }
-        await patients.insertOne(patient);
-        res.json({ result: 'true', data : patient });
-    } catch (err) {
-        res.status(500).json({ result: 'false',  error: err.message });
-    }
-});
-*/
 
 // create a new patient
 app.post('/api/patients', authenticateToken, async (req, res) => {
