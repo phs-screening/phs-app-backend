@@ -16,7 +16,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'access';
 
 const app = express();
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? 'https://phs-app-2025.vercel.app/' : 'http://localhost:5173',
+  origin: process.env.NODE_ENV === 'production' ? 'https://phs-app-2025.vercel.app' : 'http://localhost:5173',
   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
   credentials: true
 }));
