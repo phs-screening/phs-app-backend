@@ -1,56 +1,81 @@
-# my-express-backend
+# PHS App Backend
 
-This is a simple Node.js and Express.js backend application.
-
-## Project Structure
-
-```
-my-express-backend
-├── src
-│   ├── app.js
-│   ├── controllers
-│   │   └── index.js
-│   ├── routes
-│   │   └── index.js
-├── package.json
-└── README.md
-```
+Express backend for the PHS screening application.
 
 ## Getting Started
 
-To get a local copy up and running follow these simple steps.
+Install dependencies:
 
-### Prerequisites
+```bash
+npm install
+```
 
-- Node.js
-- npm (Node package manager)
-
-### Installation
-
-1. Clone the repo
-   ```bash
-   git clone https://github.com/yourusername/my-express-backend.git
-   ```
-
-2. Install NPM packages
-   ```bash
-   npm install
-   ```
-
-### Usage
-
-To start the application, run:
+Start the server:
 
 ```bash
 npm start
 ```
 
-The application will be running on `http://localhost:3000`.
+Start with nodemon during development:
 
-### Contributing
+```bash
+npm run dev
+```
 
-Contributions are welcome! Please feel free to submit a pull request.
+By default, the server listens on `http://localhost:3000`.
 
-### License
+## Environment
 
-This project is licensed under the MIT License.
+Create a `.env` file with:
+
+```bash
+MONGODB_URI=...
+DB_NAME=...
+JWT_SECRET=...
+```
+
+If `JWT_SECRET` is not provided, the current code falls back to `access` for compatibility with the existing implementation.
+
+## Current Structure
+
+```text
+server/
+  index.js                 # Process entry point; creates and starts the HTTP server
+  app.js                   # Express app setup, CORS, JSON middleware, route wiring
+  db.js                    # Shared MongoDB client and getDb helper
+  middleware/
+    auth.js                # JWT auth middleware
+  routes/
+    auth.js                # Login, signup, account deletion, password reset
+    data.js                # Existing generic data endpoints and counters
+    forms.js               # Form submission and form data endpoints
+    patients.js            # Patient creation, lookup, and form status endpoints
+    printQueues.js         # Doctor PDF and Form A print queue endpoints
+functions/
+  hash.cjs                 # Existing SHA-256 password helper
+```
+
+## Refactor Notes
+
+This first refactor is intentionally structural only:
+
+- `server/index.js` is now a small boot file.
+- Express app construction moved into `server/app.js`.
+- MongoDB connection handling moved into `server/db.js`.
+- JWT authentication moved into `server/middleware/auth.js`.
+- Existing routes were grouped into route modules by responsibility.
+- Existing endpoint paths and handler behavior were preserved.
+
+The next recommended refactor step is to replace generic collection-based endpoints with explicit domain endpoints. For example, instead of allowing the frontend to pass arbitrary MongoDB collection names, define routes around application concepts such as patients, forms, station status, and print queues.
+
+## Recommended Direction
+
+Keep the backend as a modular monolith:
+
+- `auth` owns login, signup, session identity, and account administration.
+- `patients` owns patient registration and lookup.
+- `forms` owns form submission and form retrieval.
+- `stations` should eventually own eligibility and completion rules.
+- `printQueues` owns Doctor PDF and Form A queue workflows.
+
+This keeps the codebase lightweight while giving future contributors clear places to add or change behavior.
