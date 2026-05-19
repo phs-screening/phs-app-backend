@@ -9,6 +9,10 @@ function createFormsRoutes({ getDb, authenticateToken }) {
   const formsService = createFormsService({ formsRepository });
   const formsController = createFormsController({ formsService });
 
+  router.get('/forms/registry', authenticateToken, formsController.getRegistry);
+  router.get('/patients/:patientId/forms/:formKey', authenticateToken, formsController.getPatientFormByKey);
+  router.post('/patients/:patientId/forms/:formKey', authenticateToken, formsController.submitFormByKey);
+
   router.post('/forms/:formCollection/:patientId', authenticateToken, formsController.submitForm);
   router.get('/forms/info', authenticateToken, formsController.getInfo);
   router.get('/forms/status', authenticateToken, formsController.getStatus);

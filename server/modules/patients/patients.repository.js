@@ -21,6 +21,13 @@ function createPatientsRepository({ getDb }) {
     return patients.findOne({ queueNo });
   }
 
+  async function findPatientNames() {
+    const patients = await getPatientsCollection();
+    return patients
+      .find({}, { projection: { initials: 1, _id: 0 } })
+      .toArray();
+  }
+
   async function findRecordByCollectionAndId(collection, id) {
     const db = await getDb();
     const filter = collection === 'patients' ? { queueNo: id } : { _id: id };
@@ -36,6 +43,7 @@ function createPatientsRepository({ getDb }) {
     findLastPatientByQueueNo,
     insertPatient,
     findPatientByQueueNo,
+    findPatientNames,
     findRecordByCollectionAndId,
     findRecordByInitials,
   };

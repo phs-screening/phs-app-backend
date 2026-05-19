@@ -31,12 +31,19 @@ function createPatientsService({ patientsRepository }) {
   }
 
   async function getPatientRecord(id, collection) {
-    if (Number.isNaN(id) || !collection) {
+    if (Number.isNaN(id)) {
       return { status: 400, body: { result: false, error: 'Bad request' } };
     }
 
-    const rec = await patientsRepository.findRecordByCollectionAndId(collection, id);
+    const rec = collection
+      ? await patientsRepository.findRecordByCollectionAndId(collection, id)
+      : await patientsRepository.findPatientByQueueNo(id);
     return { status: 200, body: { result: true, data: rec } };
+  }
+
+  async function getPatientNames() {
+    const data = await patientsRepository.findPatientNames();
+    return { status: 200, body: { result: true, data } };
   }
 
   async function getPatientByInitials(initials, collection = 'patients') {
@@ -65,6 +72,7 @@ function createPatientsService({ patientsRepository }) {
   return {
     createPatient,
     getPatientRecord,
+    getPatientNames,
     getPatientByInitials,
     getPatientFormsStatus,
   };

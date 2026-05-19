@@ -1,4 +1,4 @@
-const { getFormInfo } = require('./formRegistry');
+const { getFormDefinition, getFormInfo, getFormRegistryInfo } = require('./formRegistry');
 
 function createFormsService({ formsRepository }) {
   async function submitForm(formCollection, patientId, payload, user) {
@@ -41,6 +41,15 @@ function createFormsService({ formsRepository }) {
     return { status: 403, body: { result: false, error: errorMsg } };
   }
 
+  async function submitFormByKey(formKey, patientId, payload, user) {
+    const form = getFormDefinition(formKey);
+    if (!form) {
+      return { status: 404, body: { result: false, error: 'Unknown form' } };
+    }
+
+    return submitForm(form.collection, patientId, payload, user);
+  }
+
   async function applyPatientSideEffects(formCollection, patientId, payload) {
     if (formCollection === 'registrationForm') {
       await formsRepository.updatePatient(
@@ -65,6 +74,10 @@ function createFormsService({ formsRepository }) {
 
   function getInfo() {
     return { status: 200, body: { result: true, data: getFormInfo() } };
+  }
+
+  function getRegistry() {
+    return { status: 200, body: { result: true, data: getFormRegistryInfo() } };
   }
 
   async function getStatus(id) {
@@ -112,6 +125,20 @@ function createFormsService({ formsRepository }) {
     return { status: 200, body: { result: true, data: doc } };
   }
 
+  async function getPatientFormByKey(id, formKey) {
+    if (Number.isNaN(id) || !formKey) {
+      return { status: 400, body: { result: false, error: 'Bad request' } };
+    }
+
+    const form = getFormDefinition(formKey);
+    if (!form) {
+      return { status: 404, body: { result: false, error: 'Unknown form' } };
+    }
+
+    const doc = await formsRepository.findFormDocument(form.collection, id);
+    return { status: 200, body: { result: true, data: doc } };
+  }
+
   async function upsertPatientForm(id, form, formData, user) {
     if (Number.isNaN(id) || !form) {
       return { status: 400, body: { result: false, error: 'Bad request' } };
@@ -130,10 +157,13 @@ function createFormsService({ formsRepository }) {
 
   return {
     submitForm,
+    submitFormByKey,
     getInfo,
+    getRegistry,
     getStatus,
     getPatientForms,
     getPatientForm,
+    getPatientFormByKey,
     upsertPatientForm,
   };
 }

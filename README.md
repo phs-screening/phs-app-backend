@@ -76,9 +76,37 @@ This first refactor is intentionally structural only:
 - Existing routes were grouped into route modules by responsibility.
 - Patient and form routes now use a route/controller/service/repository module shape.
 - `server/modules/forms/formRegistry.js` is the initial home for central form metadata.
+- Stage 3 introduced explicit domain routes for patients and forms while keeping older collection-based compatibility routes.
 - Existing endpoint paths and handler behavior were preserved.
 
 The next recommended refactor step is to replace generic collection-based endpoints with explicit domain endpoints. For example, instead of allowing the frontend to pass arbitrary MongoDB collection names, define routes around application concepts such as patients, forms, station status, and print queues.
+
+## Domain Routes
+
+Prefer these newer routes for new frontend work:
+
+```text
+GET  /api/patients/:patientId
+GET  /api/patients/names
+GET  /api/patients/search?initials=...
+GET  /api/patients/:patientId/forms/:formKey
+POST /api/patients/:patientId/forms/:formKey
+GET  /api/forms/registry
+```
+
+The form `formKey` should be one of the canonical keys in `server/modules/forms/formRegistry.js`, such as `registration`, `triage`, `hsg`, or `doctorConsult`.
+
+The older compatibility routes are still available during migration:
+
+```text
+GET  /api/getCollection?collection=...
+GET  /api/savedData?collectionName=...
+GET  /api/patientSavedData?collectionName=...
+GET  /api/patients/:id?collection=...
+POST /api/forms/:formCollection/:patientId
+```
+
+Compatibility routes should not be used for new frontend code.
 
 ## Recommended Direction
 

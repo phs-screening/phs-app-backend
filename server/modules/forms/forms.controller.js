@@ -16,8 +16,26 @@ function createFormsController({ formsService }) {
     }
   }
 
+  async function submitFormByKey(req, res) {
+    const patientId = parseInt(req.params.patientId, 10);
+    const formKey = req.params.formKey;
+    const payload = req.body?.data || {};
+
+    try {
+      const result = await formsService.submitFormByKey(formKey, patientId, payload, req.user);
+      return sendServiceResult(res, result);
+    } catch (e) {
+      return res.status(500).json({ result: false, error: e.message });
+    }
+  }
+
   async function getInfo(req, res) {
     const result = formsService.getInfo();
+    return sendServiceResult(res, result);
+  }
+
+  async function getRegistry(req, res) {
+    const result = formsService.getRegistry();
     return sendServiceResult(res, result);
   }
 
@@ -55,6 +73,18 @@ function createFormsController({ formsService }) {
     }
   }
 
+  async function getPatientFormByKey(req, res) {
+    const id = parseInt(req.params.patientId, 10);
+    const formKey = req.params.formKey;
+
+    try {
+      const result = await formsService.getPatientFormByKey(id, formKey);
+      return sendServiceResult(res, result);
+    } catch (e) {
+      return res.status(500).json({ result: false, error: e.message });
+    }
+  }
+
   async function upsertPatientForm(req, res) {
     const id = parseInt(req.params.id, 10);
     const form = req.params.form;
@@ -70,10 +100,13 @@ function createFormsController({ formsService }) {
 
   return {
     submitForm,
+    submitFormByKey,
     getInfo,
+    getRegistry,
     getStatus,
     getPatientForms,
     getPatientForm,
+    getPatientFormByKey,
     upsertPatientForm,
   };
 }
