@@ -7,7 +7,7 @@ const createAuthRoutes = require('./modules/auth/auth.routes');
 const createDataRoutes = require('./routes/data');
 const createFormsRoutes = require('./modules/forms/forms.routes');
 const createPatientsRoutes = require('./modules/patients/patients.routes');
-const createPrintQueueRoutes = require('./routes/printQueues');
+const createPrintQueueRoutes = require('./modules/printQueues/printQueues.routes');
 
 function createApp() {
   const app = express();

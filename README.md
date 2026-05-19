@@ -62,9 +62,14 @@ server/
       patients.repository.js
       patients.routes.js
       patients.service.js
+    printQueues/
+      printQueueRegistry.js
+      printQueues.controller.js
+      printQueues.repository.js
+      printQueues.routes.js
+      printQueues.service.js
   routes/
     data.js                # Existing generic data endpoints and counters
-    printQueues.js         # Doctor PDF and Form A print queue endpoints
 functions/
   hash.cjs                 # Existing SHA-256 password helper
 ```
@@ -78,10 +83,11 @@ This first refactor is intentionally structural only:
 - MongoDB connection handling moved into `server/db.js`.
 - JWT authentication moved into `server/middleware/auth.js`.
 - Existing routes were grouped into route modules by responsibility.
-- Auth, patient, and form routes now use a route/controller/service/repository module shape.
+- Auth, patient, form, and print queue routes now use a route/controller/service/repository module shape.
 - `server/modules/forms/formRegistry.js` is the initial home for central form metadata.
 - Stage 3 introduced explicit domain routes for patients and forms while keeping older collection-based compatibility routes.
 - Stage 5 moved login, signup, password reset, and account deletion into `server/modules/auth`.
+- Stage 6 moved Doctor PDF and Form A queue workflows into `server/modules/printQueues`.
 - Existing endpoint paths and handler behavior were preserved.
 
 The next recommended refactor step is to replace generic collection-based endpoints with explicit domain endpoints. For example, instead of allowing the frontend to pass arbitrary MongoDB collection names, define routes around application concepts such as patients, forms, station status, and print queues.
@@ -101,6 +107,10 @@ GET  /api/patients/search?initials=...
 GET  /api/patients/:patientId/forms/:formKey
 POST /api/patients/:patientId/forms/:formKey
 GET  /api/forms/registry
+GET  /api/docPdfQueue
+POST /api/docPdfQueue
+GET  /api/formAPdfQueue
+POST /api/formAPdfQueue
 ```
 
 The form `formKey` should be one of the canonical keys in `server/modules/forms/formRegistry.js`, such as `registration`, `triage`, `hsg`, or `doctorConsult`.
@@ -141,6 +151,28 @@ Current behavior is intentionally preserved:
 - Password reset writes the provided `newPassword` value as before.
 
 Those choices should be revisited in a dedicated security refactor rather than mixed into structural changes.
+
+## Print Queue Notes
+
+Doctor PDF and Form A queues are path-compatible with the existing frontend, but now share a registry-backed module internally.
+
+Current route names are preserved:
+
+```text
+GET    /api/docPdfQueue
+GET    /api/docPdfQueue/printed
+POST   /api/docPdfQueue
+PATCH  /api/docPdfQueue/:id
+DELETE /api/docPdfQueue/:id
+
+GET    /api/formAPdfQueue
+GET    /api/formAPdfQueue/printed
+POST   /api/formAPdfQueue
+PATCH  /api/formAPdfQueue/:id
+DELETE /api/formAPdfQueue/:id
+```
+
+Queue-specific differences live in `server/modules/printQueues/printQueueRegistry.js`.
 
 ## Module Pattern
 
