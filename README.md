@@ -194,6 +194,8 @@ This stage intentionally mirrors the existing frontend completion rules only. El
 
 The frontend still keeps its local eligibility logic for fallback and for Form A/PDF generation. Do not remove frontend station logic until backend/frontend parity has been verified with known patient examples.
 
+Stage 7C added frontend parity checks and began using backend eligibility for station count updates with local fallback. Backend eligibility should still be treated as parity-in-progress until enough known patient examples have been checked.
+
 ## Module Pattern
 
 New backend modules should follow this shape:
