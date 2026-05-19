@@ -46,6 +46,11 @@ server/
   middleware/
     auth.js                # JWT auth middleware
   modules/
+    auth/
+      auth.controller.js   # Request/response handling for auth endpoints
+      auth.repository.js   # MongoDB access for profiles
+      auth.routes.js       # Auth endpoint declarations
+      auth.service.js      # Login, signup, reset, and account workflows
     forms/
       formRegistry.js      # First central form metadata registry
       forms.controller.js  # Request/response handling for form endpoints
@@ -58,7 +63,6 @@ server/
       patients.routes.js
       patients.service.js
   routes/
-    auth.js                # Login, signup, account deletion, password reset
     data.js                # Existing generic data endpoints and counters
     printQueues.js         # Doctor PDF and Form A print queue endpoints
 functions/
@@ -74,9 +78,10 @@ This first refactor is intentionally structural only:
 - MongoDB connection handling moved into `server/db.js`.
 - JWT authentication moved into `server/middleware/auth.js`.
 - Existing routes were grouped into route modules by responsibility.
-- Patient and form routes now use a route/controller/service/repository module shape.
+- Auth, patient, and form routes now use a route/controller/service/repository module shape.
 - `server/modules/forms/formRegistry.js` is the initial home for central form metadata.
 - Stage 3 introduced explicit domain routes for patients and forms while keeping older collection-based compatibility routes.
+- Stage 5 moved login, signup, password reset, and account deletion into `server/modules/auth`.
 - Existing endpoint paths and handler behavior were preserved.
 
 The next recommended refactor step is to replace generic collection-based endpoints with explicit domain endpoints. For example, instead of allowing the frontend to pass arbitrary MongoDB collection names, define routes around application concepts such as patients, forms, station status, and print queues.
@@ -86,6 +91,10 @@ The next recommended refactor step is to replace generic collection-based endpoi
 Prefer these newer routes for new frontend work:
 
 ```text
+POST /api/handleLogin
+POST /api/handleSignup
+POST /api/deleteAccount
+POST /api/resetPassword
 GET  /api/patients/:patientId
 GET  /api/patients/names
 GET  /api/patients/search?initials=...
@@ -119,6 +128,19 @@ Keep the backend as a modular monolith:
 - `printQueues` owns Doctor PDF and Form A queue workflows.
 
 This keeps the codebase lightweight while giving future contributors clear places to add or change behavior.
+
+## Auth Notes
+
+Auth routes are path-compatible with the existing frontend, but their internals now follow the same module pattern as patients and forms.
+
+Current behavior is intentionally preserved:
+
+- Login signs an 8-hour JWT.
+- Guest login compares against the existing SHA-256 password hash.
+- Admin login still uses the existing plaintext comparison branch.
+- Password reset writes the provided `newPassword` value as before.
+
+Those choices should be revisited in a dedicated security refactor rather than mixed into structural changes.
 
 ## Module Pattern
 
