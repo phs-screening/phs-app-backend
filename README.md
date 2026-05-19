@@ -100,6 +100,7 @@ This first refactor is intentionally structural only:
 - Stage 7D improved frontend parity diagnostics while keeping backend station eligibility behavior unchanged.
 - Stage 8 began frontend report/PDF extraction; no backend route or handler behavior changed.
 - Stage 9 continued frontend report/PDF extraction for Form A; no backend route or handler behavior changed.
+- Stage 10A continued frontend report/PDF extraction for the legacy patient report; no backend route or handler behavior changed.
 - Existing endpoint paths and handler behavior were preserved.
 
 The next recommended refactor step is to replace generic collection-based endpoints with explicit domain endpoints. For example, instead of allowing the frontend to pass arbitrary MongoDB collection names, define routes around application concepts such as patients, forms, station status, and print queues.
