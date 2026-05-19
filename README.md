@@ -45,11 +45,21 @@ server/
   db.js                    # Shared MongoDB client and getDb helper
   middleware/
     auth.js                # JWT auth middleware
+  modules/
+    forms/
+      formRegistry.js      # First central form metadata registry
+      forms.controller.js  # Request/response handling for form endpoints
+      forms.repository.js  # MongoDB access for form and patient-form records
+      forms.routes.js      # Form endpoint declarations
+      forms.service.js     # Form submission/retrieval workflow logic
+    patients/
+      patients.controller.js
+      patients.repository.js
+      patients.routes.js
+      patients.service.js
   routes/
     auth.js                # Login, signup, account deletion, password reset
     data.js                # Existing generic data endpoints and counters
-    forms.js               # Form submission and form data endpoints
-    patients.js            # Patient creation, lookup, and form status endpoints
     printQueues.js         # Doctor PDF and Form A print queue endpoints
 functions/
   hash.cjs                 # Existing SHA-256 password helper
@@ -64,6 +74,8 @@ This first refactor is intentionally structural only:
 - MongoDB connection handling moved into `server/db.js`.
 - JWT authentication moved into `server/middleware/auth.js`.
 - Existing routes were grouped into route modules by responsibility.
+- Patient and form routes now use a route/controller/service/repository module shape.
+- `server/modules/forms/formRegistry.js` is the initial home for central form metadata.
 - Existing endpoint paths and handler behavior were preserved.
 
 The next recommended refactor step is to replace generic collection-based endpoints with explicit domain endpoints. For example, instead of allowing the frontend to pass arbitrary MongoDB collection names, define routes around application concepts such as patients, forms, station status, and print queues.
@@ -79,3 +91,16 @@ Keep the backend as a modular monolith:
 - `printQueues` owns Doctor PDF and Form A queue workflows.
 
 This keeps the codebase lightweight while giving future contributors clear places to add or change behavior.
+
+## Module Pattern
+
+New backend modules should follow this shape:
+
+```text
+routes      # URL shape and middleware only
+controller  # Translates HTTP request/response into service calls
+service     # Application workflow and business rules
+repository  # Database reads/writes
+```
+
+During this refactor, compatibility routes are kept in place. The service layer is the right place to introduce explicit domain behavior before eventually removing generic collection-based access.
