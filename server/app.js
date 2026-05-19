@@ -8,6 +8,7 @@ const createDataRoutes = require('./routes/data');
 const createFormsRoutes = require('./modules/forms/forms.routes');
 const createPatientsRoutes = require('./modules/patients/patients.routes');
 const createPrintQueueRoutes = require('./modules/printQueues/printQueues.routes');
+const createStationsRoutes = require('./modules/stations/stations.routes');
 
 function createApp() {
   const app = express();
@@ -25,6 +26,7 @@ function createApp() {
   app.use('/api', createPrintQueueRoutes(deps));
   app.use('/api', createPatientsRoutes(deps));
   app.use('/api', createFormsRoutes(deps));
+  app.use('/api', createStationsRoutes(deps));
   app.use('/api', createAuthRoutes(deps));
 
   return app;

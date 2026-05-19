@@ -68,6 +68,12 @@ server/
       printQueues.repository.js
       printQueues.routes.js
       printQueues.service.js
+    stations/
+      stationRegistry.js
+      stations.controller.js
+      stations.repository.js
+      stations.routes.js
+      stations.service.js
   routes/
     data.js                # Existing generic data endpoints and counters
 functions/
@@ -88,6 +94,7 @@ This first refactor is intentionally structural only:
 - Stage 3 introduced explicit domain routes for patients and forms while keeping older collection-based compatibility routes.
 - Stage 5 moved login, signup, password reset, and account deletion into `server/modules/auth`.
 - Stage 6 moved Doctor PDF and Form A queue workflows into `server/modules/printQueues`.
+- Stage 7A added backend station completion status in `server/modules/stations`.
 - Existing endpoint paths and handler behavior were preserved.
 
 The next recommended refactor step is to replace generic collection-based endpoints with explicit domain endpoints. For example, instead of allowing the frontend to pass arbitrary MongoDB collection names, define routes around application concepts such as patients, forms, station status, and print queues.
@@ -106,6 +113,7 @@ GET  /api/patients/names
 GET  /api/patients/search?initials=...
 GET  /api/patients/:patientId/forms/:formKey
 POST /api/patients/:patientId/forms/:formKey
+GET  /api/patients/:patientId/station-status
 GET  /api/forms/registry
 GET  /api/docPdfQueue
 POST /api/docPdfQueue
@@ -173,6 +181,12 @@ DELETE /api/formAPdfQueue/:id
 ```
 
 Queue-specific differences live in `server/modules/printQueues/printQueueRegistry.js`.
+
+## Station Status Notes
+
+`GET /api/patients/:patientId/station-status` returns the dashboard completion status shape used by the frontend timeline.
+
+This stage intentionally mirrors the existing frontend completion rules only. Eligibility rules still live in the frontend and should be moved in a later, more cautious stage with known patient examples or tests.
 
 ## Module Pattern
 
