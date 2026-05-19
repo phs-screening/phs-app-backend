@@ -10,6 +10,7 @@ function createStationsRoutes({ getDb, authenticateToken }) {
   const stationsController = createStationsController({ stationsService });
 
   router.get('/patients/:patientId/station-status', authenticateToken, stationsController.getPatientStationStatus);
+  router.get('/patients/:patientId/station-eligibility', authenticateToken, stationsController.getPatientStationEligibility);
 
   return router;
 }

@@ -14,7 +14,18 @@ function createStationsController({ stationsService }) {
     }
   }
 
-  return { getPatientStationStatus };
+  async function getPatientStationEligibility(req, res) {
+    const patientId = parseInt(req.params.patientId, 10);
+
+    try {
+      const result = await stationsService.getPatientStationEligibility(patientId);
+      return sendServiceResult(res, result);
+    } catch (e) {
+      return res.status(500).json({ result: false, error: e.message });
+    }
+  }
+
+  return { getPatientStationStatus, getPatientStationEligibility };
 }
 
 module.exports = createStationsController;

@@ -95,6 +95,7 @@ This first refactor is intentionally structural only:
 - Stage 5 moved login, signup, password reset, and account deletion into `server/modules/auth`.
 - Stage 6 moved Doctor PDF and Form A queue workflows into `server/modules/printQueues`.
 - Stage 7A added backend station completion status in `server/modules/stations`.
+- Stage 7B added backend station eligibility calculation, copied from the frontend rules for parity.
 - Existing endpoint paths and handler behavior were preserved.
 
 The next recommended refactor step is to replace generic collection-based endpoints with explicit domain endpoints. For example, instead of allowing the frontend to pass arbitrary MongoDB collection names, define routes around application concepts such as patients, forms, station status, and print queues.
@@ -114,6 +115,7 @@ GET  /api/patients/search?initials=...
 GET  /api/patients/:patientId/forms/:formKey
 POST /api/patients/:patientId/forms/:formKey
 GET  /api/patients/:patientId/station-status
+GET  /api/patients/:patientId/station-eligibility
 GET  /api/forms/registry
 GET  /api/docPdfQueue
 POST /api/docPdfQueue
@@ -187,6 +189,10 @@ Queue-specific differences live in `server/modules/printQueues/printQueueRegistr
 `GET /api/patients/:patientId/station-status` returns the dashboard completion status shape used by the frontend timeline.
 
 This stage intentionally mirrors the existing frontend completion rules only. Eligibility rules still live in the frontend and should be moved in a later, more cautious stage with known patient examples or tests.
+
+`GET /api/patients/:patientId/station-eligibility` returns eligibility rows and eligible station names copied from the current frontend `getEligibilityRows` rules.
+
+The frontend still keeps its local eligibility logic for fallback and for Form A/PDF generation. Do not remove frontend station logic until backend/frontend parity has been verified with known patient examples.
 
 ## Module Pattern
 
