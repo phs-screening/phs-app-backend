@@ -70,6 +70,7 @@ server/
       printQueues.service.js
     stations/
       stationRegistry.js
+      stationEligibility.js
       stations.controller.js
       stations.repository.js
       stations.routes.js
@@ -96,6 +97,7 @@ This first refactor is intentionally structural only:
 - Stage 6 moved Doctor PDF and Form A queue workflows into `server/modules/printQueues`.
 - Stage 7A added backend station completion status in `server/modules/stations`.
 - Stage 7B added backend station eligibility calculation, copied from the frontend rules for parity.
+- Stage 7D improved frontend parity diagnostics while keeping backend station eligibility behavior unchanged.
 - Existing endpoint paths and handler behavior were preserved.
 
 The next recommended refactor step is to replace generic collection-based endpoints with explicit domain endpoints. For example, instead of allowing the frontend to pass arbitrary MongoDB collection names, define routes around application concepts such as patients, forms, station status, and print queues.
@@ -195,6 +197,8 @@ This stage intentionally mirrors the existing frontend completion rules only. El
 The frontend still keeps its local eligibility logic for fallback and for Form A/PDF generation. Do not remove frontend station logic until backend/frontend parity has been verified with known patient examples.
 
 Stage 7C added frontend parity checks and began using backend eligibility for station count updates with local fallback. Backend eligibility should still be treated as parity-in-progress until enough known patient examples have been checked.
+
+Stage 7D keeps the current rule behavior unchanged and improves mismatch diagnostics in the frontend. Treat any browser console `Station eligibility mismatch` warning as a prompt to compare data shape, form mappings, and defaults before considering any rule changes.
 
 ## Module Pattern
 
