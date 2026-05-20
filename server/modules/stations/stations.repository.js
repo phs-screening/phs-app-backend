@@ -1,7 +1,7 @@
 function createStationsRepository({ getDb }) {
   async function findPatientByQueueNo(queueNo) {
     const db = await getDb();
-    return db.collection('patients').findOne({ queueNo });
+    return db.collection("patients").findOne({ queueNo });
   }
 
   async function findFormByPatientId(collection, patientId) {
@@ -24,18 +24,18 @@ function createStationsRepository({ getDb }) {
       hxgynae,
       ophthal,
     ] = await Promise.all([
-      findFormByPatientId('hxNssForm', patientId),
-      findFormByPatientId('hxSocialForm', patientId),
-      findFormByPatientId('registrationForm', patientId),
-      findFormByPatientId('hxFamilyForm', patientId),
-      findFormByPatientId('triageForm', patientId),
-      findFormByPatientId('hxHcsrForm', patientId),
-      findFormByPatientId('hxOralForm', patientId),
-      findFormByPatientId('wceForm', patientId),
-      findFormByPatientId('geriPhqForm', patientId),
-      findFormByPatientId('hxM4M5ReviewForm', patientId),
-      findFormByPatientId('gynaeForm', patientId),
-      findFormByPatientId('ophthalForm', patientId),
+      findFormByPatientId("hxNssForm", patientId),
+      findFormByPatientId("hxSocialForm", patientId),
+      findFormByPatientId("registrationForm", patientId),
+      findFormByPatientId("hxFamilyForm", patientId),
+      findFormByPatientId("triageForm", patientId),
+      findFormByPatientId("hxHcsrForm", patientId),
+      findFormByPatientId("hxOralForm", patientId),
+      findFormByPatientId("wceForm", patientId),
+      findFormByPatientId("geriPhqForm", patientId),
+      findFormByPatientId("hxM4M5ReviewForm", patientId),
+      findFormByPatientId("gynaeForm", patientId),
+      findFormByPatientId("ophthalForm", patientId),
     ]);
 
     return {
@@ -54,7 +54,32 @@ function createStationsRepository({ getDb }) {
     };
   }
 
-  return { findPatientByQueueNo, findEligibilityForms };
+  async function updateStationCounts(
+    patientId,
+    {
+      visitedStationCount,
+      eligibleStationCount,
+      visitedStations,
+      eligibleStations,
+    },
+  ) {
+    const db = await getDb();
+    return db.collection("stationCounts").updateOne(
+      { queueNo: patientId },
+      {
+        $set: {
+          visitedStationCount,
+          eligibleStationCount,
+          visitedStation: visitedStations,
+          eligibleStation: eligibleStations,
+          updatedAt: new Date(),
+        },
+      },
+      { upsert: true },
+    );
+  }
+
+  return { findPatientByQueueNo, findEligibilityForms, updateStationCounts };
 }
 
 module.exports = createStationsRepository;

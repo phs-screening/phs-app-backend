@@ -15,6 +15,11 @@ function createStationsRoutes({ getDb, authenticateToken }) {
     authenticateToken,
     stationsController.getPatientStationSummary,
   );
+  router.post(
+    "/patients/:patientId/station-counts/recalculate",
+    authenticateToken,
+    stationsController.recalculatePatientStationCounts,
+  );
   router.get(
     "/patients/:patientId/station-status",
     authenticateToken,

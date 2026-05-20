@@ -42,11 +42,24 @@ function createStationsController({ stationsService }) {
     }
   }
 
+  async function recalculatePatientStationCounts(req, res) {
+    const patientId = parseInt(req.params.patientId, 10);
+
+    try {
+      const result =
+        await stationsService.recalculatePatientStationCounts(patientId);
+      return sendServiceResult(res, result);
+    } catch (e) {
+      return res.status(500).json({ result: false, error: e.message });
+    }
+  }
+
   return {
     getStations,
     getPatientStationStatus,
     getPatientStationEligibility,
     getPatientStationSummary,
+    recalculatePatientStationCounts,
   };
 }
 

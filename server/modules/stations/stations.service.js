@@ -15,6 +15,58 @@ function createStationsService({ stationsRepository }) {
     return [...new Set(values)];
   }
 
+  async function buildPatientStationSummary(patientId) {
+    const patient = await stationsRepository.findPatientByQueueNo(patientId);
+    if (!patient) {
+      return null;
+    }
+
+    const forms = await stationsRepository.findEligibilityForms(patientId);
+    const status = buildStationCompletionStatus(patient);
+    const stations = getStationDefinitions({ activeOnly: true }).map(
+      (station) => {
+        const eligible = station.eligibilityRule
+          ? isEligible(station.eligibilityRule, forms)
+          : true;
+
+        return {
+          key: station.key,
+          displayName: station.displayName,
+          eligibilityName: station.eligibilityName,
+          route: station.route,
+          requiredForms: station.requiredForms,
+          eligibilityRule: station.eligibilityRule,
+          active: station.active,
+          complete: isStationComplete(patient, station),
+          eligible,
+        };
+      },
+    );
+
+    const countableStations = stations.filter(
+      (station) => station.eligibilityRule,
+    );
+    const visitedStations = unique(
+      countableStations
+        .filter((station) => station.complete)
+        .map((station) => station.eligibilityName || station.displayName),
+    );
+    const eligibleStations = unique(
+      countableStations
+        .filter((station) => station.eligible)
+        .map((station) => station.eligibilityName || station.displayName),
+    );
+
+    return {
+      status,
+      stations,
+      visitedStationCount: visitedStations.length,
+      eligibleStationCount: eligibleStations.length,
+      visitedStations,
+      eligibleStations,
+    };
+  }
+
   function getStations() {
     return {
       status: 200,
@@ -87,61 +139,50 @@ function createStationsService({ stationsRepository }) {
       };
     }
 
-    const patient = await stationsRepository.findPatientByQueueNo(patientId);
-    if (!patient) {
+    const summary = await buildPatientStationSummary(patientId);
+    if (!summary) {
       return {
         status: 404,
         body: { result: false, error: "Patient not found" },
       };
     }
 
-    const forms = await stationsRepository.findEligibilityForms(patientId);
-    const status = buildStationCompletionStatus(patient);
-    const stations = getStationDefinitions({ activeOnly: true }).map(
-      (station) => {
-        const eligible = station.eligibilityRule
-          ? isEligible(station.eligibilityRule, forms)
-          : true;
-
-        return {
-          key: station.key,
-          displayName: station.displayName,
-          eligibilityName: station.eligibilityName,
-          route: station.route,
-          requiredForms: station.requiredForms,
-          eligibilityRule: station.eligibilityRule,
-          active: station.active,
-          complete: isStationComplete(patient, station),
-          eligible,
-        };
+    return {
+      status: 200,
+      body: {
+        result: true,
+        data: summary,
       },
-    );
+    };
+  }
 
-    const countableStations = stations.filter(
-      (station) => station.eligibilityRule,
-    );
-    const visitedStations = unique(
-      countableStations
-        .filter((station) => station.complete)
-        .map((station) => station.eligibilityName || station.displayName),
-    );
-    const eligibleStations = unique(
-      countableStations
-        .filter((station) => station.eligible)
-        .map((station) => station.eligibilityName || station.displayName),
-    );
+  async function recalculatePatientStationCounts(patientId) {
+    if (Number.isNaN(patientId)) {
+      return {
+        status: 400,
+        body: { result: false, error: "Invalid patient id" },
+      };
+    }
+
+    const summary = await buildPatientStationSummary(patientId);
+    if (!summary) {
+      return {
+        status: 404,
+        body: { result: false, error: "Patient not found" },
+      };
+    }
+
+    await stationsRepository.updateStationCounts(patientId, summary);
 
     return {
       status: 200,
       body: {
         result: true,
         data: {
-          status,
-          stations,
-          visitedStationCount: visitedStations.length,
-          eligibleStationCount: eligibleStations.length,
-          visitedStations,
-          eligibleStations,
+          visitedStationCount: summary.visitedStationCount,
+          eligibleStationCount: summary.eligibleStationCount,
+          visitedStations: summary.visitedStations,
+          eligibleStations: summary.eligibleStations,
         },
       },
     };
@@ -152,6 +193,7 @@ function createStationsService({ stationsRepository }) {
     getPatientStationStatus,
     getPatientStationEligibility,
     getPatientStationSummary,
+    recalculatePatientStationCounts,
   };
 }
 
