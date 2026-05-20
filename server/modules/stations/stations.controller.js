@@ -3,6 +3,11 @@ function sendServiceResult(res, result) {
 }
 
 function createStationsController({ stationsService }) {
+  function getStations(req, res) {
+    const result = stationsService.getStations();
+    return sendServiceResult(res, result);
+  }
+
   async function getPatientStationStatus(req, res) {
     const patientId = parseInt(req.params.patientId, 10);
 
@@ -18,14 +23,44 @@ function createStationsController({ stationsService }) {
     const patientId = parseInt(req.params.patientId, 10);
 
     try {
-      const result = await stationsService.getPatientStationEligibility(patientId);
+      const result =
+        await stationsService.getPatientStationEligibility(patientId);
       return sendServiceResult(res, result);
     } catch (e) {
       return res.status(500).json({ result: false, error: e.message });
     }
   }
 
-  return { getPatientStationStatus, getPatientStationEligibility };
+  async function getPatientStationSummary(req, res) {
+    const patientId = parseInt(req.params.patientId, 10);
+
+    try {
+      const result = await stationsService.getPatientStationSummary(patientId);
+      return sendServiceResult(res, result);
+    } catch (e) {
+      return res.status(500).json({ result: false, error: e.message });
+    }
+  }
+
+  async function recalculatePatientStationCounts(req, res) {
+    const patientId = parseInt(req.params.patientId, 10);
+
+    try {
+      const result =
+        await stationsService.recalculatePatientStationCounts(patientId);
+      return sendServiceResult(res, result);
+    } catch (e) {
+      return res.status(500).json({ result: false, error: e.message });
+    }
+  }
+
+  return {
+    getStations,
+    getPatientStationStatus,
+    getPatientStationEligibility,
+    getPatientStationSummary,
+    recalculatePatientStationCounts,
+  };
 }
 
 module.exports = createStationsController;
