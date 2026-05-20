@@ -1,15 +1,15 @@
+const { buildStationCompletionStatus } = require("../stations/stationRegistry");
+
 function createPatientsService({ patientsRepository }) {
   async function createPatient(input, user) {
-    const {
-      gender,
-      initials,
-      age,
-      preferredLanguage,
-      goingForPhlebotomy
-    } = input || {};
+    const { gender, initials, age, preferredLanguage, goingForPhlebotomy } =
+      input || {};
 
     if (!initials) {
-      return { status: 400, body: { result: false, error: 'initials required' } };
+      return {
+        status: 400,
+        body: { result: false, error: "initials required" },
+      };
     }
 
     const last = await patientsRepository.findLastPatientByQueueNo();
@@ -17,13 +17,13 @@ function createPatientsService({ patientsRepository }) {
 
     const doc = {
       queueNo,
-      gender: gender ?? '',
+      gender: gender ?? "",
       initials: String(initials).trim(),
       age: Number.isFinite(Number(age)) ? Number(age) : 0,
-      preferredLanguage: preferredLanguage ?? '',
-      goingForPhlebotomy: goingForPhlebotomy ?? 'No',
+      preferredLanguage: preferredLanguage ?? "",
+      goingForPhlebotomy: goingForPhlebotomy ?? "No",
       createdAt: new Date(),
-      createdBy: user?.email
+      createdBy: user?.email,
     };
 
     await patientsRepository.insertPatient(doc);
@@ -32,7 +32,7 @@ function createPatientsService({ patientsRepository }) {
 
   async function getPatientRecord(id, collection) {
     if (Number.isNaN(id)) {
-      return { status: 400, body: { result: false, error: 'Bad request' } };
+      return { status: 400, body: { result: false, error: "Bad request" } };
     }
 
     const rec = collection
@@ -46,26 +46,35 @@ function createPatientsService({ patientsRepository }) {
     return { status: 200, body: { result: true, data } };
   }
 
-  async function getPatientByInitials(initials, collection = 'patients') {
+  async function getPatientByInitials(initials, collection = "patients") {
     if (!initials) {
-      return { status: 400, body: { result: false, error: 'Bad request' } };
+      return { status: 400, body: { result: false, error: "Bad request" } };
     }
 
-    const rec = await patientsRepository.findRecordByInitials(collection, initials);
+    const rec = await patientsRepository.findRecordByInitials(
+      collection,
+      initials,
+    );
     return { status: 200, body: { result: true, data: rec } };
   }
 
   async function getPatientFormsStatus(patientId) {
     if (Number.isNaN(patientId)) {
-      return { status: 400, body: { result: false, error: 'Invalid patient id' } };
+      return {
+        status: 400,
+        body: { result: false, error: "Invalid patient id" },
+      };
     }
 
     const patient = await patientsRepository.findPatientByQueueNo(patientId);
     if (!patient) {
-      return { status: 404, body: { result: false, error: 'Patient not found' } };
+      return {
+        status: 404,
+        body: { result: false, error: "Patient not found" },
+      };
     }
 
-    const status = buildStatusFromPatient(patient);
+    const status = buildStationCompletionStatus(patient);
     return { status: 200, body: { result: true, data: status } };
   }
 

@@ -1,7 +1,7 @@
-const express = require('express');
-const createStationsController = require('./stations.controller');
-const createStationsRepository = require('./stations.repository');
-const createStationsService = require('./stations.service');
+const express = require("express");
+const createStationsController = require("./stations.controller");
+const createStationsRepository = require("./stations.repository");
+const createStationsService = require("./stations.service");
 
 function createStationsRoutes({ getDb, authenticateToken }) {
   const router = express.Router();
@@ -9,8 +9,22 @@ function createStationsRoutes({ getDb, authenticateToken }) {
   const stationsService = createStationsService({ stationsRepository });
   const stationsController = createStationsController({ stationsService });
 
-  router.get('/patients/:patientId/station-status', authenticateToken, stationsController.getPatientStationStatus);
-  router.get('/patients/:patientId/station-eligibility', authenticateToken, stationsController.getPatientStationEligibility);
+  router.get("/stations", authenticateToken, stationsController.getStations);
+  router.get(
+    "/patients/:patientId/station-summary",
+    authenticateToken,
+    stationsController.getPatientStationSummary,
+  );
+  router.get(
+    "/patients/:patientId/station-status",
+    authenticateToken,
+    stationsController.getPatientStationStatus,
+  );
+  router.get(
+    "/patients/:patientId/station-eligibility",
+    authenticateToken,
+    stationsController.getPatientStationEligibility,
+  );
 
   return router;
 }
