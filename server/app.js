@@ -4,7 +4,6 @@ const cors = require('cors');
 const { getDb } = require('./db');
 const { authenticateToken, JWT_SECRET } = require('./middleware/auth');
 const createAuthRoutes = require('./modules/auth/auth.routes');
-const createDataRoutes = require('./routes/data');
 const createFormsRoutes = require('./modules/forms/forms.routes');
 const createPatientsRoutes = require('./modules/patients/patients.routes');
 const createPrintQueueRoutes = require('./modules/printQueues/printQueues.routes');
@@ -31,7 +30,6 @@ function createApp() {
   app.use('/api', createFormsRoutes(deps));
   app.use('/api', createStationsRoutes(deps));
   app.use('/api', createAuthRoutes(deps));
-  app.use('/api', createDataRoutes(deps));
 
   return app;
 }

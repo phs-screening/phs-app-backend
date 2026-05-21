@@ -4,6 +4,51 @@ function createQueuesService({ queuesRepository }) {
     return { status: 200, body: { result: true, data } };
   }
 
+  async function createStationQueue(stationName) {
+    if (!stationName) {
+      return { status: 400, body: { result: false, error: 'stationName required' } };
+    }
+
+    await queuesRepository.insertStationQueue(stationName);
+    return { status: 200, body: { result: true } };
+  }
+
+  async function deleteStationQueue(stationName) {
+    if (!stationName) {
+      return { status: 400, body: { result: false, error: 'stationName required' } };
+    }
+
+    await queuesRepository.deleteStationQueue(stationName);
+    return { status: 200, body: { result: true } };
+  }
+
+  async function addPatientsToStationQueue(stationName, queueItems) {
+    if (!stationName || !Array.isArray(queueItems)) {
+      return { status: 400, body: { result: false, error: 'stationName and queueItems required' } };
+    }
+
+    await queuesRepository.addQueueItems(stationName, queueItems);
+    return { status: 200, body: { result: true } };
+  }
+
+  async function removePatientsFromStationQueue(stationName, queueItems) {
+    if (!stationName || !Array.isArray(queueItems)) {
+      return { status: 400, body: { result: false, error: 'stationName and queueItems required' } };
+    }
+
+    await queuesRepository.removeQueueItems(stationName, queueItems);
+    return { status: 200, body: { result: true } };
+  }
+
+  async function removeFirstPatientFromStationQueue(stationName) {
+    if (!stationName) {
+      return { status: 400, body: { result: false, error: 'stationName required' } };
+    }
+
+    await queuesRepository.removeFirstQueueItem(stationName);
+    return { status: 200, body: { result: true } };
+  }
+
   async function getQueueCounters() {
     const data = await queuesRepository.findQueueCounters();
     return { status: 200, body: { result: true, data } };
@@ -25,9 +70,14 @@ function createQueuesService({ queuesRepository }) {
   }
 
   return {
+    addPatientsToStationQueue,
+    createStationQueue,
+    deleteStationQueue,
     getNextPatientQueueNo,
     getQueueCounters,
     getQueueEntries,
+    removeFirstPatientFromStationQueue,
+    removePatientsFromStationQueue,
     updatePhlebotomyCounter,
   };
 }

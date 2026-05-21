@@ -11,6 +11,11 @@ function createQueuesRoutes({ getDb, authenticateToken }) {
 
   router.post('/queues/patients/next-number', authenticateToken, queuesController.getNextPatientQueueNo);
   router.get('/queues', authenticateToken, queuesController.getQueueEntries);
+  router.post('/queues/stations', authenticateToken, queuesController.createStationQueue);
+  router.delete('/queues/stations/:stationName', authenticateToken, queuesController.deleteStationQueue);
+  router.patch('/queues/stations/:stationName/items', authenticateToken, queuesController.addPatientsToStationQueue);
+  router.patch('/queues/stations/:stationName/items/remove', authenticateToken, queuesController.removePatientsFromStationQueue);
+  router.patch('/queues/stations/:stationName/items/first', authenticateToken, queuesController.removeFirstPatientFromStationQueue);
   router.get('/queue-counters', authenticateToken, queuesController.getQueueCounters);
   router.patch('/queue-counters/phlebotomy', authenticateToken, queuesController.updatePhlebotomyCounter);
 
