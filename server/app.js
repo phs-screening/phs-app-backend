@@ -8,6 +8,8 @@ const createDataRoutes = require('./routes/data');
 const createFormsRoutes = require('./modules/forms/forms.routes');
 const createPatientsRoutes = require('./modules/patients/patients.routes');
 const createPrintQueueRoutes = require('./modules/printQueues/printQueues.routes');
+const createProfilesRoutes = require('./modules/profiles/profiles.routes');
+const createQueuesRoutes = require('./modules/queues/queues.routes');
 const createStationsRoutes = require('./modules/stations/stations.routes');
 
 function createApp() {
@@ -22,12 +24,14 @@ function createApp() {
 
   const deps = { getDb, authenticateToken, JWT_SECRET };
 
-  app.use('/api', createDataRoutes(deps));
   app.use('/api', createPrintQueueRoutes(deps));
+  app.use('/api', createProfilesRoutes(deps));
+  app.use('/api', createQueuesRoutes(deps));
   app.use('/api', createPatientsRoutes(deps));
   app.use('/api', createFormsRoutes(deps));
   app.use('/api', createStationsRoutes(deps));
   app.use('/api', createAuthRoutes(deps));
+  app.use('/api', createDataRoutes(deps));
 
   return app;
 }
