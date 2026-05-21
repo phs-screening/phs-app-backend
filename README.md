@@ -52,7 +52,7 @@ server/
       auth.routes.js       # Auth endpoint declarations
       auth.service.js      # Login, signup, reset, and account workflows
     forms/
-      formRegistry.js      # First central form metadata registry
+      formRegistry.js      # Central form metadata and collection mapping
       forms.controller.js  # Request/response handling for form endpoints
       forms.repository.js  # MongoDB access for form and patient-form records
       forms.routes.js      # Form endpoint declarations
@@ -69,8 +69,8 @@ server/
       printQueues.routes.js
       printQueues.service.js
     stations/
-      stationRegistry.js
-      stationEligibility.js
+      stationRegistry.js   # Station metadata: key, display name, route, required forms, active flag
+      stationEligibility.js # Named station eligibility rules
       stations.controller.js
       stations.repository.js
       stations.routes.js
@@ -96,8 +96,10 @@ This first refactor is intentionally structural only:
 - Stage 5 moved login, signup, password reset, and account deletion into `server/modules/auth`.
 - Stage 6 moved Doctor PDF and Form A queue workflows into `server/modules/printQueues`.
 - Stage 7A added backend station completion status in `server/modules/stations`.
-- Stage 7B added backend station eligibility calculation, copied from the frontend rules for parity.
-- Stage 7D improved frontend parity diagnostics while keeping backend station eligibility behavior unchanged.
+- Stage 7B added backend station eligibility calculation.
+- Stage 7D improved frontend parity diagnostics during the migration.
+- The station registry now owns active station metadata, completion requirements, eligibility rule names, and count recalculation.
+- Form submissions now trigger backend station count recalculation after successful saves.
 - Stage 8 began frontend report/PDF extraction; no backend route or handler behavior changed.
 - Stage 9 continued frontend report/PDF extraction for Form A; no backend route or handler behavior changed.
 - Stage 10A continued frontend report/PDF extraction for the legacy patient report; no backend route or handler behavior changed.
@@ -120,8 +122,11 @@ GET  /api/patients/names
 GET  /api/patients/search?initials=...
 GET  /api/patients/:patientId/forms/:formKey
 POST /api/patients/:patientId/forms/:formKey
+GET  /api/stations
 GET  /api/patients/:patientId/station-status
 GET  /api/patients/:patientId/station-eligibility
+GET  /api/patients/:patientId/station-summary
+POST /api/patients/:patientId/station-counts/recalculate
 GET  /api/forms/registry
 GET  /api/docPdfQueue
 POST /api/docPdfQueue
@@ -130,6 +135,12 @@ POST /api/formAPdfQueue
 ```
 
 The form `formKey` should be one of the canonical keys in `server/modules/forms/formRegistry.js`, such as `registration`, `triage`, `hsg`, or `doctorConsult`.
+
+Station routes are backed by the registry in `server/modules/stations/stationRegistry.js`:
+
+- `GET /api/stations` returns active station metadata for the frontend.
+- `GET /api/patients/:patientId/station-summary` returns active stations plus per-station `complete` and `eligible` booleans, station status, visited/eligible counts, and visited/eligible station names.
+- `POST /api/patients/:patientId/station-counts/recalculate` recomputes and persists `stationCounts` from the backend rules.
 
 The older compatibility routes are still available during migration:
 
@@ -150,7 +161,7 @@ Keep the backend as a modular monolith:
 - `auth` owns login, signup, session identity, and account administration.
 - `patients` owns patient registration and lookup.
 - `forms` owns form submission and form retrieval.
-- `stations` should eventually own eligibility and completion rules.
+- `stations` owns station metadata, eligibility, completion, summaries, and count recalculation.
 - `printQueues` owns Doctor PDF and Form A queue workflows.
 
 This keeps the codebase lightweight while giving future contributors clear places to add or change behavior.
@@ -192,17 +203,44 @@ Queue-specific differences live in `server/modules/printQueues/printQueueRegistr
 
 ## Station Status Notes
 
-`GET /api/patients/:patientId/station-status` returns the dashboard completion status shape used by the frontend timeline.
+`GET /api/patients/:patientId/station-status` returns the legacy dashboard completion status shape.
 
-This stage intentionally mirrors the existing frontend completion rules only. Eligibility rules still live in the frontend and should be moved in a later, more cautious stage with known patient examples or tests.
+`GET /api/patients/:patientId/station-eligibility` returns Form A style eligibility rows and eligible station names.
 
-`GET /api/patients/:patientId/station-eligibility` returns eligibility rows and eligible station names copied from the current frontend `getEligibilityRows` rules.
+`GET /api/patients/:patientId/station-summary` is the preferred station endpoint for frontend dashboard work. It combines:
 
-The frontend still keeps its local eligibility logic for fallback and for Form A/PDF generation. Do not remove frontend station logic until backend/frontend parity has been verified with known patient examples.
+- active station metadata from `stationRegistry.js`
+- completion from each station's `requiredForms`
+- eligibility from the station's named `eligibilityRule`
+- visited and eligible station names/counts
 
-Stage 7C added frontend parity checks and began using backend eligibility for station count updates with local fallback. Backend eligibility should still be treated as parity-in-progress until enough known patient examples have been checked.
+`POST /api/patients/:patientId/station-counts/recalculate` persists the same computed counts into the `stationCounts` collection. Form submissions call this recalculation after successful saves, so station counts stay aligned with backend rules.
 
-Stage 7D keeps the current rule behavior unchanged and improves mismatch diagnostics in the frontend. Treat any browser console `Station eligibility mismatch` warning as a prompt to compare data shape, form mappings, and defaults before considering any rule changes.
+## Yearly Station Changes
+
+For next year's screening event, make station changes in the backend registries first:
+
+1. Add or update the form in `server/modules/forms/formRegistry.js`.
+2. Add or update the station in `server/modules/stations/stationRegistry.js`.
+3. Add or update the named eligibility rule in `server/modules/stations/stationEligibility.js`.
+4. Add a frontend route/component only if the station needs a new page.
+5. Add a frontend bridge in `src/forms/formKeys.js` if old frontend code still passes a MongoDB collection name.
+
+Station registry entries should include:
+
+```js
+{
+  key: "vax",
+  displayName: "Vaccination",
+  eligibilityName: "Vaccination",
+  route: "vax",
+  requiredForms: ["vaccine"],
+  eligibilityRule: "vaccination",
+  active: true
+}
+```
+
+Use `active: false` to hide a station from the active workflow while keeping old data and routes readable.
 
 ## Module Pattern
 
