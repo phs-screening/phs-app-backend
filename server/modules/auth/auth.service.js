@@ -79,7 +79,8 @@ function createAuthService({ authRepository, JWT_SECRET }) {
       return { status: 400, body: { result: false, error: 'New password is required' } };
     }
 
-    await authRepository.updatePassword(username, newPassword);
+    const hashHex = await hashPassword(newPassword);
+    await authRepository.updatePassword(username, hashHex);
     return { status: 200, body: { result: true, message: 'Password reset successfully' } };
   }
 

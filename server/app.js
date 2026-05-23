@@ -4,10 +4,11 @@ const cors = require('cors');
 const { getDb } = require('./db');
 const { authenticateToken, JWT_SECRET } = require('./middleware/auth');
 const createAuthRoutes = require('./modules/auth/auth.routes');
-const createDataRoutes = require('./routes/data');
 const createFormsRoutes = require('./modules/forms/forms.routes');
 const createPatientsRoutes = require('./modules/patients/patients.routes');
 const createPrintQueueRoutes = require('./modules/printQueues/printQueues.routes');
+const createProfilesRoutes = require('./modules/profiles/profiles.routes');
+const createQueuesRoutes = require('./modules/queues/queues.routes');
 const createStationsRoutes = require('./modules/stations/stations.routes');
 
 function createApp() {
@@ -22,8 +23,9 @@ function createApp() {
 
   const deps = { getDb, authenticateToken, JWT_SECRET };
 
-  app.use('/api', createDataRoutes(deps));
   app.use('/api', createPrintQueueRoutes(deps));
+  app.use('/api', createProfilesRoutes(deps));
+  app.use('/api', createQueuesRoutes(deps));
   app.use('/api', createPatientsRoutes(deps));
   app.use('/api', createFormsRoutes(deps));
   app.use('/api', createStationsRoutes(deps));

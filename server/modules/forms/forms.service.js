@@ -4,7 +4,7 @@ const {
   getFormRegistryInfo,
 } = require("./formRegistry");
 
-function createFormsService({ formsRepository, onFormSubmitted }) {
+function createFormsService({ formsRepository, onFormSubmitted, onFormAReadyCheck }) {
   async function recalculateStationCounts(patientId) {
     if (!onFormSubmitted) {
       return;
@@ -15,6 +15,21 @@ function createFormsService({ formsRepository, onFormSubmitted }) {
     } catch (e) {
       console.error(
         `Failed to recalculate station counts for patient ${patientId}:`,
+        e,
+      );
+    }
+  }
+
+  async function maybeEnqueueFormA(patientId) {
+    if (!onFormAReadyCheck) {
+      return;
+    }
+
+    try {
+      await onFormAReadyCheck(patientId);
+    } catch (e) {
+      console.error(
+        `Failed to check Form A queue readiness for patient ${patientId}:`,
         e,
       );
     }
@@ -49,6 +64,7 @@ function createFormsService({ formsRepository, onFormSubmitted }) {
 
       await applyPatientSideEffects(formCollection, patientId, payload);
       await recalculateStationCounts(patientId);
+      await maybeEnqueueFormA(patientId);
 
       return { status: 200, body: { result: true } };
     }
@@ -67,6 +83,7 @@ function createFormsService({ formsRepository, onFormSubmitted }) {
       );
       await applyPatientSideEffects(formCollection, patientId, payload);
       await recalculateStationCounts(patientId);
+      await maybeEnqueueFormA(patientId);
 
       return { status: 200, body: { result: true } };
     }
@@ -184,6 +201,7 @@ function createFormsService({ formsRepository, onFormSubmitted }) {
     await formsRepository.upsertFormDocument(form, id, parsed, user.email);
     await formsRepository.updatePatient(id, { $set: { [form]: id } });
     await recalculateStationCounts(id);
+    await maybeEnqueueFormA(id);
 
     return { status: 200, body: { result: true } };
   }
