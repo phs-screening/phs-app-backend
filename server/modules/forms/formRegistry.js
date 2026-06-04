@@ -125,6 +125,12 @@ const formRegistry = {
     collection: "fitForm",
     patientMarker: "fitForm",
   },
+  scoliosis: {
+    key: "scoliosis",
+    title: "Scoliosis",
+    collection: "scoliosisForm",
+    patientMarker: "scoliosisForm",
+  },
   geriEbasDep: {
     key: "geriEbasDep",
     title: "Geri EBAS-DEP",
