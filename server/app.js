@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 
 const { getDb } = require('./db');
-const { authenticateToken, JWT_SECRET } = require('./middleware/auth');
+const { authenticateToken, requireAdmin, JWT_SECRET } = require('./middleware/auth');
 const createAuthRoutes = require('./modules/auth/auth.routes');
 const createFormsRoutes = require('./modules/forms/forms.routes');
 const createPatientsRoutes = require('./modules/patients/patients.routes');
@@ -21,7 +21,7 @@ function createApp() {
   }));
   app.use(express.json());
 
-  const deps = { getDb, authenticateToken, JWT_SECRET };
+  const deps = { getDb, authenticateToken, requireAdmin, JWT_SECRET };
 
   app.use('/api', createPrintQueueRoutes(deps));
   app.use('/api', createProfilesRoutes(deps));
