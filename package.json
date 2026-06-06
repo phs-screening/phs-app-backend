@@ -6,7 +6,8 @@
   "private": false,
   "scripts": {
     "start": "node server/index.js",
-    "dev": "nodemon server/index.js"
+    "dev": "nodemon server/index.js",
+    "load:login": "k6 run tests/load/login.js"
   },
   "eslintConfig": {
     "extends": "react-app"

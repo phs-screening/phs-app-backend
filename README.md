@@ -24,6 +24,33 @@ npm run dev
 
 By default, the server listens on `http://localhost:3000`.
 
+## Load Testing
+
+The backend has a small k6 login test for `/api/handleLogin`.
+
+Install k6 first:
+
+```bash
+winget install k6
+```
+
+Start the backend in one terminal:
+
+```bash
+npm run dev
+```
+
+Run the login test from `phs-app-backend` in another terminal:
+
+```bash
+$env:BASE_URL = "http://localhost:3000/api"
+$env:LOGIN_EMAIL = "test-volunteer@example.com"
+$env:LOGIN_PASSWORD = "test-password"
+npm run load:login
+```
+
+Use a real test volunteer account. Do not use production credentials for local or staging load tests.
+
 ## Environment
 
 Create a `.env` file with:
