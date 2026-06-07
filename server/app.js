@@ -14,8 +14,18 @@ const createStationsRoutes = require('./modules/stations/stations.routes');
 function createApp() {
   const app = express();
 
+  const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
   app.use(cors({
-    origin: process.env.NODE_ENV === 'production' ? 'https://phs-app-2025.vercel.app' : 'http://localhost:5173',
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error(`Not allowed by CORS: ${origin}`));
+    },
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
     credentials: true
   }));
