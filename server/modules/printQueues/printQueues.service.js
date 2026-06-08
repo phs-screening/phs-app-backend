@@ -1,5 +1,7 @@
-const { ObjectId } = require('mongodb');
-const { getPrintQueue } = require('./printQueueRegistry');
+const { ObjectId } = require("mongodb");
+const { getPrintQueue } = require("./printQueueRegistry");
+
+const MAX_PAGE_LIMIT = 100;
 
 function createPrintQueuesService({ printQueuesRepository }) {
   function resolveQueue(queueKey) {
@@ -7,7 +9,10 @@ function createPrintQueuesService({ printQueuesRepository }) {
   }
 
   function unknownQueueResult() {
-    return { status: 404, body: { result: false, error: 'Unknown print queue' } };
+    return {
+      status: 404,
+      body: { result: false, error: "Unknown print queue" },
+    };
   }
 
   function validateId(queue, id) {
@@ -24,12 +29,59 @@ function createPrintQueuesService({ printQueuesRepository }) {
     return null;
   }
 
-  async function listQueue(queueKey, printed) {
+  function parsePagination(query = {}) {
+    if (query.page == null && query.limit == null) {
+      return null;
+    }
+
+    const page = Number.parseInt(query.page, 10);
+    const requestedLimit = Number.parseInt(query.limit, 10);
+
+    return {
+      page: Number.isFinite(page) && page > 0 ? page : 1,
+      limit:
+        Number.isFinite(requestedLimit) && requestedLimit > 0
+          ? Math.min(requestedLimit, MAX_PAGE_LIMIT)
+          : 25,
+    };
+  }
+
+  function buildPagination({ page, limit, total }) {
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      page,
+      limit,
+      total,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
+    };
+  }
+
+  async function listQueue(queueKey, printed, query) {
     const queue = resolveQueue(queueKey);
     if (!queue) return unknownQueueResult();
 
-    const documents = await printQueuesRepository.findByPrintedStatus(queue, printed);
-    return { status: 200, body: { result: true, data: documents } };
+    const pagination = parsePagination(query);
+    const result = await printQueuesRepository.findByPrintedStatus(
+      queue,
+      printed,
+      pagination,
+    );
+
+    if (!pagination) {
+      return { status: 200, body: { result: true, data: result } };
+    }
+
+    return {
+      status: 200,
+      body: {
+        result: true,
+        data: result.documents,
+        pagination: buildPagination({ ...pagination, total: result.total }),
+      },
+    };
   }
 
   async function addToQueue(queueKey, body) {
@@ -38,12 +90,21 @@ function createPrintQueuesService({ printQueuesRepository }) {
 
     const { patientId, doctorName } = body;
     if (!patientId) {
-      return { status: 400, body: { result: false, error: 'Patient ID is required' } };
+      return {
+        status: 400,
+        body: { result: false, error: "Patient ID is required" },
+      };
     }
 
-    const existingEntry = await printQueuesRepository.findExistingEntry(queue, patientId);
+    const existingEntry = await printQueuesRepository.findExistingEntry(
+      queue,
+      patientId,
+    );
     if (existingEntry) {
-      return { status: 200, body: { result: true, message: 'Patient already in queue' } };
+      return {
+        status: 200,
+        body: { result: true, message: "Patient already in queue" },
+      };
     }
 
     const doc = {
@@ -53,7 +114,7 @@ function createPrintQueuesService({ printQueuesRepository }) {
     };
 
     if (queue.includeDoctorName) {
-      doc.doctorName = doctorName || '';
+      doc.doctorName = doctorName || "";
     }
 
     await printQueuesRepository.insertEntry(queue, doc);
@@ -69,7 +130,10 @@ function createPrintQueuesService({ printQueuesRepository }) {
 
     const result = await printQueuesRepository.markPrinted(queue, id);
     if (result.matchedCount === 0) {
-      return { status: 404, body: { result: false, error: 'Document not found' } };
+      return {
+        status: 404,
+        body: { result: false, error: "Document not found" },
+      };
     }
 
     return { status: 200, body: { result: true } };
@@ -84,7 +148,10 @@ function createPrintQueuesService({ printQueuesRepository }) {
 
     const result = await printQueuesRepository.deleteEntry(queue, id);
     if (result.deletedCount === 0) {
-      return { status: 404, body: { result: false, error: 'Document not found' } };
+      return {
+        status: 404,
+        body: { result: false, error: "Document not found" },
+      };
     }
 
     return { status: 200, body: { result: true } };
