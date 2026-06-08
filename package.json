@@ -6,7 +6,8 @@
   "private": false,
   "scripts": {
     "start": "node server/index.js",
-    "dev": "nodemon server/index.js"
+    "dev": "nodemon server/index.js",
+    "seed:sample-patients": "node scripts/seedSamplePatients.js"
   },
   "eslintConfig": {
     "extends": "react-app"
