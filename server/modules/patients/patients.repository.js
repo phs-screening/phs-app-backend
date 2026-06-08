@@ -21,11 +21,40 @@ function createPatientsRepository({ getDb }) {
     return patients.findOne({ queueNo });
   }
 
-  async function findPatientNames() {
+  function escapeRegex(value) {
+    return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  function buildPatientNamesFilter(q) {
+    const query = String(q ?? "").trim();
+    if (!query) return {};
+
+    return { initials: { $regex: escapeRegex(query), $options: "i" } };
+  }
+
+  async function findPatientNames(options) {
     const patients = await getPatientsCollection();
-    return patients
-      .find({}, { projection: { initials: 1, _id: 0 } })
-      .toArray();
+
+    if (!options) {
+      return patients
+        .find({}, { projection: { initials: 1, _id: 0 } })
+        .toArray();
+    }
+
+    const { q, page, limit } = options;
+    const filter = buildPatientNamesFilter(q);
+    const skip = (page - 1) * limit;
+    const [data, total] = await Promise.all([
+      patients
+        .find(filter, { projection: { initials: 1, _id: 0 } })
+        .sort({ initials: 1 })
+        .skip(skip)
+        .limit(limit)
+        .toArray(),
+      patients.countDocuments(filter),
+    ]);
+
+    return { data, total };
   }
 
   async function findRecordByCollectionAndId(collection, id) {
