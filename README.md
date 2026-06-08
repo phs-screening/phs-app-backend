@@ -36,6 +36,26 @@ JWT_SECRET=...
 
 If `JWT_SECRET` is not provided, the current code falls back to `access` for compatibility with the existing implementation.
 
+## Database Setup
+
+Run the database setup script once for each new MongoDB database before using the app:
+
+```bash
+npm run db:setup
+```
+
+This creates required indexes and initializes the atomic patient queue number counter. On an empty database, the counter is set to `0`, so the first registered patient receives `queueNo` `1`. On a database with existing patients, the counter is advanced to the current highest `queueNo`.
+
+For event-day deployment, run this against the production database after setting `MONGODB_URI` and `DB_NAME` for that environment. The backend has a fallback counter initialization path, but `db:setup` is still required to create indexes such as the unique `patients.queueNo` index.
+
+For local testing, sample completed patients can be inserted with:
+
+```bash
+npm run seed:sample-patients -- --count=100
+```
+
+The seed script also advances the patient queue number counter so future registrations do not collide with inserted sample patients.
+
 ## Current Structure
 
 ```text

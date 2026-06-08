@@ -1,13 +1,62 @@
 function createPatientsRepository({ getDb }) {
+  const PATIENT_QUEUE_COUNTER_ID = "patients.queueNo";
+
   async function getPatientsCollection() {
     const db = await getDb();
     return db.collection('patients');
+  }
+
+  async function getCountersCollection() {
+    const db = await getDb();
+    return db.collection("counters");
   }
 
   async function findLastPatientByQueueNo() {
     const patients = await getPatientsCollection();
     const last = await patients.find().sort({ queueNo: -1 }).limit(1).toArray();
     return last[0];
+  }
+
+  async function initializePatientQueueCounter() {
+    const counters = await getCountersCollection();
+    const last = await findLastPatientByQueueNo();
+    const currentMax = last?.queueNo || 0;
+
+    await counters.updateOne(
+      { _id: PATIENT_QUEUE_COUNTER_ID },
+      { $setOnInsert: { seq: currentMax } },
+      { upsert: true },
+    );
+  }
+
+  function getCounterDocument(result) {
+    return result?.value || result;
+  }
+
+  async function getNextPatientQueueNo() {
+    const counters = await getCountersCollection();
+    let result = await counters.findOneAndUpdate(
+      { _id: PATIENT_QUEUE_COUNTER_ID },
+      { $inc: { seq: 1 } },
+      { returnDocument: "after" },
+    );
+    let counter = getCounterDocument(result);
+
+    if (!counter) {
+      await initializePatientQueueCounter();
+      result = await counters.findOneAndUpdate(
+        { _id: PATIENT_QUEUE_COUNTER_ID },
+        { $inc: { seq: 1 } },
+        { returnDocument: "after" },
+      );
+      counter = getCounterDocument(result);
+    }
+
+    if (!counter?.seq) {
+      throw new Error("Unable to allocate patient queue number");
+    }
+
+    return counter.seq;
   }
 
   async function insertPatient(doc) {
@@ -70,6 +119,7 @@ function createPatientsRepository({ getDb }) {
 
   return {
     findLastPatientByQueueNo,
+    getNextPatientQueueNo,
     insertPatient,
     findPatientByQueueNo,
     findPatientNames,

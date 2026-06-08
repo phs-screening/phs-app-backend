@@ -4,6 +4,7 @@ require("dotenv").config();
 const DEFAULT_COUNT = 100;
 const DEFAULT_PREFIX = "SAMPLE";
 const DEFAULT_START_QUEUE = 10000;
+const PATIENT_QUEUE_COUNTER_ID = "patients.queueNo";
 
 const FORM_MARKERS = [
   "registrationForm",
@@ -280,6 +281,17 @@ async function deleteSeedBatch(db, prefix) {
   }
 }
 
+async function advancePatientQueueCounter(db, queueNo) {
+  await db.collection("counters").updateOne(
+    { _id: PATIENT_QUEUE_COUNTER_ID },
+    {
+      $max: { seq: queueNo },
+      $set: { updatedAt: new Date() },
+    },
+    { upsert: true },
+  );
+}
+
 async function seed() {
   const { count, prefix, reset, startQueueNo } = parseArgs(process.argv.slice(2));
   const { MONGODB_URI, DB_NAME } = process.env;
@@ -338,6 +350,11 @@ async function seed() {
             ),
           );
       }
+
+      await advancePatientQueueCounter(
+        db,
+        firstQueueNo + patients.length - 1,
+      );
     }
 
     console.log(

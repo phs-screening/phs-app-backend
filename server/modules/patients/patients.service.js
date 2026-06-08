@@ -12,8 +12,7 @@ function createPatientsService({ patientsRepository }) {
       };
     }
 
-    const last = await patientsRepository.findLastPatientByQueueNo();
-    const queueNo = (last?.queueNo || 0) + 1;
+    const queueNo = await patientsRepository.getNextPatientQueueNo();
 
     const doc = {
       queueNo,
