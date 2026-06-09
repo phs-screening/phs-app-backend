@@ -26,7 +26,7 @@ function createPatientsController({ patientsService }) {
 
   async function getPatientNames(req, res) {
     try {
-      const result = await patientsService.getPatientNames();
+      const result = await patientsService.getPatientNames(req.query);
       return sendServiceResult(res, result);
     } catch (e) {
       return res.status(500).json({ result: false, error: e.message });

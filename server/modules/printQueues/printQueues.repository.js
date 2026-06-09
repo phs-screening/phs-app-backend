@@ -1,4 +1,4 @@
-const { ObjectId } = require('mongodb');
+const { ObjectId } = require("mongodb");
 
 function createPrintQueuesRepository({ getDb }) {
   async function getCollection(queue) {
@@ -6,9 +6,28 @@ function createPrintQueuesRepository({ getDb }) {
     return db.collection(queue.collection);
   }
 
-  async function findByPrintedStatus(queue, printed) {
+  async function findByPrintedStatus(queue, printed, pagination) {
     const collection = await getCollection(queue);
-    return collection.find({ printed }).toArray();
+    const filter = { printed };
+
+    if (!pagination) {
+      return collection.find(filter).toArray();
+    }
+
+    const { page, limit } = pagination;
+    const skip = (page - 1) * limit;
+    const cursor = collection
+      .find(filter)
+      .sort({ createdAt: -1, _id: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const [documents, total] = await Promise.all([
+      cursor.toArray(),
+      collection.countDocuments(filter),
+    ]);
+
+    return { documents, total };
   }
 
   async function findExistingEntry(queue, patientId) {
@@ -25,7 +44,7 @@ function createPrintQueuesRepository({ getDb }) {
     const collection = await getCollection(queue);
     return collection.updateOne(
       { _id: new ObjectId(id) },
-      { $set: { printed: true } }
+      { $set: { printed: true } },
     );
   }
 
