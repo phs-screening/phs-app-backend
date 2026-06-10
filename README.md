@@ -63,6 +63,26 @@ JWT_SECRET=...
 
 If `JWT_SECRET` is not provided, the current code falls back to `access` for compatibility with the existing implementation.
 
+## Database Setup
+
+Run the database setup script once for each new MongoDB database before using the app:
+
+```bash
+npm run db:setup
+```
+
+This creates required indexes and initializes the atomic patient queue number counter. On an empty database, the counter is set to `0`, so the first registered patient receives `queueNo` `1`. On a database with existing patients, the counter is advanced to the current highest `queueNo`.
+
+For event-day deployment, run this against the production database after setting `MONGODB_URI` and `DB_NAME` for that environment. The backend has a fallback counter initialization path, but `db:setup` is still required to create indexes such as the unique `patients.queueNo` index.
+
+For local testing, sample completed patients can be inserted with:
+
+```bash
+npm run seed:sample-patients -- --count=100
+```
+
+The seed script also advances the patient queue number counter so future registrations do not collide with inserted sample patients.
+
 ## Current Structure
 
 ```text
@@ -78,6 +98,11 @@ server/
       auth.repository.js   # MongoDB access for profiles
       auth.routes.js       # Auth endpoint declarations
       auth.service.js      # Login, signup, reset, and account workflows
+    eventDashboard/
+      eventDashboard.controller.js # Request/response handling for event dashboard endpoints
+      eventDashboard.repository.js # MongoDB aggregate reads for event-level statistics
+      eventDashboard.routes.js     # Event dashboard endpoint declarations
+      eventDashboard.service.js    # Dashboard summary and incomplete-patient workflows
     forms/
       formRegistry.js      # Central form metadata and collection mapping
       forms.controller.js  # Request/response handling for form endpoints
@@ -155,6 +180,8 @@ GET  /api/patients/:patientId/station-eligibility
 GET  /api/patients/:patientId/station-summary
 POST /api/patients/:patientId/station-counts/recalculate
 GET  /api/forms/registry
+GET  /api/event-dashboard/summary
+GET  /api/event-dashboard/incomplete-patients?q=...&page=1&limit=25
 GET  /api/docPdfQueue
 POST /api/docPdfQueue
 GET  /api/formAPdfQueue
@@ -242,6 +269,51 @@ Queue-specific differences live in `server/modules/printQueues/printQueueRegistr
 - visited and eligible station names/counts
 
 `POST /api/patients/:patientId/station-counts/recalculate` persists the same computed counts into the `stationCounts` collection. Form submissions call this recalculation after successful saves, so station counts stay aligned with backend rules.
+
+## Event Dashboard Notes
+
+The event dashboard endpoints are read-only and protected by normal JWT authentication.
+
+`GET /api/event-dashboard/summary` returns event-level operating statistics:
+
+```js
+{
+  result: true,
+  data: {
+    registeredPatients: 100,
+    screeningPatients: 72,
+    completedPatients: 28,
+    bottleneckStation: { stationName: "Triage", count: 14 },
+    stationQueues: [{ stationName: "Triage", count: 14 }],
+    printQueues: [{ queueKey: "formA", queueName: "formAPdfQueue", count: 5 }],
+    refreshedAt: "2026-06-10T12:00:00.000Z"
+  }
+}
+```
+
+For the MVP, a patient is considered completed when the patient document has a `summaryForm` marker. Therefore:
+
+```text
+completedPatients = patients with summaryForm
+screeningPatients = all patients - completedPatients
+```
+
+Station queue counts are derived from the `queue` collection by counting each station's `queueItems`. Print queue counts are pending counts where `printed: false` for each queue in `printQueueRegistry.js`.
+
+`GET /api/event-dashboard/incomplete-patients?q=...&page=1&limit=25` returns paginated patients without a `summaryForm` marker. `q` is optional and searches by case-insensitive `initials`; numeric `q` values also match exact `queueNo`. `limit` defaults to `25` and is capped at `100`.
+
+The incomplete-patient rows include `queueNo`, `initials`, `age`, and `currentQueue`. `currentQueue` is derived by reading the station queue documents once and matching the patient ID inside each queue's stored item strings. It has the shape:
+
+```js
+{
+  stationName: "Triage",
+  position: 4
+}
+```
+
+If a patient is not currently in any station queue, `currentQueue` is `null`.
+
+The endpoint also includes cached station count fields from the `stationCounts` collection when available. These cached station counts are useful for diagnostics, but they should not be treated as the canonical yearly station definition; station definitions remain in `stationRegistry.js`.
 
 ## Yearly Station Changes
 

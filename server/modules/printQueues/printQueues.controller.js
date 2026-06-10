@@ -9,7 +9,11 @@ function createPrintQueuesController({ printQueuesService }) {
 
   async function getDoctorPdfQueue(req, res) {
     try {
-      const result = await printQueuesService.listQueue('doctorPdf', false);
+      const result = await printQueuesService.listQueue(
+        "doctorPdf",
+        false,
+        req.query,
+      );
       return sendServiceResult(res, result);
     } catch (e) {
       return handleError(res, e);
@@ -18,7 +22,11 @@ function createPrintQueuesController({ printQueuesService }) {
 
   async function getPrintedDoctorPdfQueue(req, res) {
     try {
-      const result = await printQueuesService.listQueue('doctorPdf', true);
+      const result = await printQueuesService.listQueue(
+        "doctorPdf",
+        true,
+        req.query,
+      );
       return sendServiceResult(res, result);
     } catch (e) {
       return handleError(res, e);
@@ -27,7 +35,7 @@ function createPrintQueuesController({ printQueuesService }) {
 
   async function addDoctorPdfQueue(req, res) {
     try {
-      const result = await printQueuesService.addToQueue('doctorPdf', req.body);
+      const result = await printQueuesService.addToQueue("doctorPdf", req.body);
       return sendServiceResult(res, result);
     } catch (e) {
       return handleError(res, e);
@@ -36,7 +44,10 @@ function createPrintQueuesController({ printQueuesService }) {
 
   async function markDoctorPdfPrinted(req, res) {
     try {
-      const result = await printQueuesService.markAsPrinted('doctorPdf', req.params.id);
+      const result = await printQueuesService.markAsPrinted(
+        "doctorPdf",
+        req.params.id,
+      );
       return sendServiceResult(res, result);
     } catch (e) {
       return handleError(res, e);
@@ -45,7 +56,10 @@ function createPrintQueuesController({ printQueuesService }) {
 
   async function deleteDoctorPdfQueue(req, res) {
     try {
-      const result = await printQueuesService.deleteFromQueue('doctorPdf', req.params.id);
+      const result = await printQueuesService.deleteFromQueue(
+        "doctorPdf",
+        req.params.id,
+      );
       return sendServiceResult(res, result);
     } catch (e) {
       return handleError(res, e);
@@ -54,7 +68,11 @@ function createPrintQueuesController({ printQueuesService }) {
 
   async function getFormAQueue(req, res) {
     try {
-      const result = await printQueuesService.listQueue('formA', false);
+      const result = await printQueuesService.listQueue(
+        "formA",
+        false,
+        req.query,
+      );
       return sendServiceResult(res, result);
     } catch (e) {
       return handleError(res, e);
@@ -63,7 +81,11 @@ function createPrintQueuesController({ printQueuesService }) {
 
   async function getPrintedFormAQueue(req, res) {
     try {
-      const result = await printQueuesService.listQueue('formA', true);
+      const result = await printQueuesService.listQueue(
+        "formA",
+        true,
+        req.query,
+      );
       return sendServiceResult(res, result);
     } catch (e) {
       return handleError(res, e);
@@ -72,7 +94,7 @@ function createPrintQueuesController({ printQueuesService }) {
 
   async function addFormAQueue(req, res) {
     try {
-      const result = await printQueuesService.addToQueue('formA', req.body);
+      const result = await printQueuesService.addToQueue("formA", req.body);
       return sendServiceResult(res, result);
     } catch (e) {
       return handleError(res, e);
@@ -81,7 +103,10 @@ function createPrintQueuesController({ printQueuesService }) {
 
   async function markFormAPrinted(req, res) {
     try {
-      const result = await printQueuesService.markAsPrinted('formA', req.params.id);
+      const result = await printQueuesService.markAsPrinted(
+        "formA",
+        req.params.id,
+      );
       return sendServiceResult(res, result);
     } catch (e) {
       return handleError(res, e);
@@ -90,7 +115,10 @@ function createPrintQueuesController({ printQueuesService }) {
 
   async function deleteFormAQueue(req, res) {
     try {
-      const result = await printQueuesService.deleteFromQueue('formA', req.params.id);
+      const result = await printQueuesService.deleteFromQueue(
+        "formA",
+        req.params.id,
+      );
       return sendServiceResult(res, result);
     } catch (e) {
       return handleError(res, e);
