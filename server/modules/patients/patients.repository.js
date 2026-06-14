@@ -81,6 +81,15 @@ function createPatientsRepository({ getDb }) {
     return { initials: { $regex: escapeRegex(query), $options: "i" } };
   }
 
+  function buildExactInitialsFilter(initials) {
+    return {
+      initials: {
+        $regex: `^${escapeRegex(String(initials).trim())}$`,
+        $options: "i",
+      },
+    };
+  }
+
   async function findPatientNames(options) {
     const patients = await getPatientsCollection();
 
@@ -106,6 +115,47 @@ function createPatientsRepository({ getDb }) {
     return { data, total };
   }
 
+  async function findPatientMatchesByInitials({ initials, page, limit }) {
+    const patients = await getPatientsCollection();
+    const filter = buildExactInitialsFilter(initials);
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await Promise.all([
+      patients
+        .aggregate([
+          { $match: filter },
+          { $sort: { queueNo: 1 } },
+          { $skip: skip },
+          { $limit: limit },
+          {
+            $lookup: {
+              from: "registrationForm",
+              localField: "queueNo",
+              foreignField: "_id",
+              as: "registration",
+            },
+          },
+          { $unwind: { path: "$registration", preserveNullAndEmptyArrays: true } },
+          {
+            $project: {
+              _id: 0,
+              queueNo: 1,
+              initials: 1,
+              age: 1,
+              gender: 1,
+              preferredLanguage: 1,
+              goingForPhlebotomy: 1,
+              birthday: "$registration.registrationQ3",
+            },
+          },
+        ])
+        .toArray(),
+      patients.countDocuments(filter),
+    ]);
+
+    return { data, total };
+  }
+
   async function findRecordByCollectionAndId(collection, id) {
     const db = await getDb();
     const filter = collection === 'patients' ? { queueNo: id } : { _id: id };
@@ -123,6 +173,7 @@ function createPatientsRepository({ getDb }) {
     insertPatient,
     findPatientByQueueNo,
     findPatientNames,
+    findPatientMatchesByInitials,
     findRecordByCollectionAndId,
     findRecordByInitials,
   };

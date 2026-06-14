@@ -33,6 +33,15 @@ function createPatientsController({ patientsService }) {
     }
   }
 
+  async function getPatientNameMatches(req, res) {
+    try {
+      const result = await patientsService.getPatientNameMatches(req.query);
+      return sendServiceResult(res, result);
+    } catch (e) {
+      return res.status(500).json({ result: false, error: e.message });
+    }
+  }
+
   async function getPatientByInitials(req, res) {
     const patientName = req.params.initials;
     const collection = req.query.collection || 'patients';
@@ -71,6 +80,7 @@ function createPatientsController({ patientsService }) {
     createPatient,
     getPatient,
     getPatientNames,
+    getPatientNameMatches,
     getPatientByInitials,
     searchPatients,
     getPatientFormsStatus,

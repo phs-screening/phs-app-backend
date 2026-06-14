@@ -139,6 +139,7 @@ POST /api/deleteAccount
 POST /api/resetPassword
 GET  /api/patients/:patientId
 GET  /api/patients/names
+GET  /api/patients/name-matches?initials=...&page=1&limit=10
 GET  /api/patients/search?initials=...
 GET  /api/patients/:patientId/forms/:formKey
 POST /api/patients/:patientId/forms/:formKey
@@ -155,6 +156,8 @@ POST /api/formAPdfQueue
 ```
 
 The form `formKey` should be one of the canonical keys in `server/modules/forms/formRegistry.js`, such as `registration`, `triage`, `hsg`, or `doctorConsult`.
+
+`GET /api/patients/name-matches` is the preferred endpoint when resolving a patient by name. Patient names are not unique, so this endpoint returns all exact case-insensitive name matches with `queueNo`, `initials`, `age`, and `birthday` from `registrationForm.registrationQ3`. Use it instead of the older single-record `/api/patients/search?initials=...` flow when the user needs to choose the correct patient.
 
 Station routes are backed by the registry in `server/modules/stations/stationRegistry.js`:
 

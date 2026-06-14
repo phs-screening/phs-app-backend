@@ -61,6 +61,19 @@ function createPatientsService({ patientsRepository }) {
     };
   }
 
+  function buildPagination({ page, limit, total }) {
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      page,
+      limit,
+      total,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
+    };
+  }
+
   async function getPatientNames(query) {
     if (!hasPatientNamesQuery(query)) {
       const data = await patientsRepository.findPatientNames();
@@ -69,21 +82,40 @@ function createPatientsService({ patientsRepository }) {
 
     const options = parsePatientNamesPagination(query);
     const { data, total } = await patientsRepository.findPatientNames(options);
-    const totalPages = Math.ceil(total / options.limit);
 
     return {
       status: 200,
       body: {
         result: true,
         data,
-        pagination: {
-          page: options.page,
-          limit: options.limit,
-          total,
-          totalPages,
-          hasNextPage: options.page < totalPages,
-          hasPrevPage: options.page > 1,
-        },
+        pagination: buildPagination({ ...options, total }),
+      },
+    };
+  }
+
+  async function getPatientNameMatches(query) {
+    const initials = String(query.initials ?? "").trim();
+    if (!initials) {
+      return {
+        status: 400,
+        body: { result: false, error: "Patient name is required" },
+      };
+    }
+
+    const options = parsePatientNamesPagination(query);
+    const { data, total } =
+      await patientsRepository.findPatientMatchesByInitials({
+        initials,
+        page: options.page,
+        limit: options.limit,
+      });
+
+    return {
+      status: 200,
+      body: {
+        result: true,
+        data,
+        pagination: buildPagination({ ...options, total }),
       },
     };
   }
@@ -124,6 +156,7 @@ function createPatientsService({ patientsRepository }) {
     createPatient,
     getPatientRecord,
     getPatientNames,
+    getPatientNameMatches,
     getPatientByInitials,
     getPatientFormsStatus,
   };
