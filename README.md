@@ -226,6 +226,17 @@ DELETE /api/formAPdfQueue/:id
 
 Queue-specific differences live in `server/modules/printQueues/printQueueRegistry.js`.
 
+The queue list endpoints support optional patient ID filtering with pagination:
+
+```text
+GET /api/docPdfQueue?page=1&limit=25&patientId=123
+GET /api/docPdfQueue/printed?page=1&limit=25&patientId=123
+GET /api/formAPdfQueue?page=1&limit=25&patientId=123
+GET /api/formAPdfQueue/printed?page=1&limit=25&patientId=123
+```
+
+The filter matches both numeric and string stored `patientId` values for compatibility with older or manually inserted records. `npm run db:setup` creates a compound `{ printed, patientId, createdAt, _id }` index for these filtered queue/history reads.
+
 ## Station Queue Notes
 
 Station queues are stored in the `queue` collection. Each station document stores `queueItems` and an optional `lastRemoved` batch:

@@ -6,9 +6,32 @@ function createPrintQueuesRepository({ getDb }) {
     return db.collection(queue.collection);
   }
 
-  async function findByPrintedStatus(queue, printed, pagination) {
-    const collection = await getCollection(queue);
+  function buildPatientIdValues(patientId) {
+    const trimmed = String(patientId ?? "").trim();
+    const numeric = Number.parseInt(trimmed, 10);
+
+    if (!trimmed || !Number.isFinite(numeric)) {
+      return [];
+    }
+
+    return [numeric, trimmed];
+  }
+
+  function buildQueueFilter(printed, patientId) {
     const filter = { printed };
+    const patientIdValues = buildPatientIdValues(patientId);
+
+    if (patientIdValues.length > 0) {
+      filter.patientId = { $in: patientIdValues };
+    }
+
+    return filter;
+  }
+
+  async function findByPrintedStatus(queue, printed, options = {}) {
+    const collection = await getCollection(queue);
+    const { pagination, patientId } = options;
+    const filter = buildQueueFilter(printed, patientId);
 
     if (!pagination) {
       return collection.find(filter).toArray();
@@ -32,7 +55,12 @@ function createPrintQueuesRepository({ getDb }) {
 
   async function findExistingEntry(queue, patientId) {
     const collection = await getCollection(queue);
-    return collection.findOne({ patientId });
+    const patientIdValues = buildPatientIdValues(patientId);
+    return collection.findOne(
+      patientIdValues.length > 0
+        ? { patientId: { $in: patientIdValues } }
+        : { patientId },
+    );
   }
 
   async function insertEntry(queue, doc) {
