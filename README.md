@@ -149,6 +149,8 @@ GET  /api/patients/:patientId/station-eligibility
 GET  /api/patients/:patientId/station-summary
 POST /api/patients/:patientId/station-counts/recalculate
 GET  /api/forms/registry
+GET  /api/queues
+PATCH /api/queues/stations/:stationName/items/restore-last-removed
 GET  /api/docPdfQueue
 POST /api/docPdfQueue
 GET  /api/formAPdfQueue
@@ -223,6 +225,24 @@ DELETE /api/formAPdfQueue/:id
 ```
 
 Queue-specific differences live in `server/modules/printQueues/printQueueRegistry.js`.
+
+## Station Queue Notes
+
+Station queues are stored in the `queue` collection. Each station document stores `queueItems` and an optional `lastRemoved` batch:
+
+```js
+{
+  stationName: "Triage",
+  queueItems: ["12: Mr Tan"],
+  lastRemoved: {
+    queueItems: ["11: Ms Lim"],
+    removedAt: Date,
+    removedBy: "volunteer@example.com"
+  }
+}
+```
+
+Removing patients from a station overwrites that station's `lastRemoved` batch with the actual queue item strings removed. `PATCH /api/queues/stations/:stationName/items/restore-last-removed` restores that batch to the front of the queue, skips patients whose IDs are already present, and clears `lastRemoved`.
 
 ## Station Status Notes
 

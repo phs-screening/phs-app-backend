@@ -47,6 +47,7 @@ function createQueuesController({ queuesService }) {
       const result = await queuesService.removePatientsFromStationQueue(
         req.params.stationName,
         req.body.queueItems,
+        req.user,
       );
       return sendServiceResult(res, result);
     } catch (e) {
@@ -56,7 +57,19 @@ function createQueuesController({ queuesService }) {
 
   async function removeFirstPatientFromStationQueue(req, res) {
     try {
-      const result = await queuesService.removeFirstPatientFromStationQueue(req.params.stationName);
+      const result = await queuesService.removeFirstPatientFromStationQueue(
+        req.params.stationName,
+        req.user,
+      );
+      return sendServiceResult(res, result);
+    } catch (e) {
+      return res.status(500).json({ result: false, error: e.message });
+    }
+  }
+
+  async function restoreLastRemovedToFront(req, res) {
+    try {
+      const result = await queuesService.restoreLastRemovedToFront(req.params.stationName);
       return sendServiceResult(res, result);
     } catch (e) {
       return res.status(500).json({ result: false, error: e.message });
@@ -99,6 +112,7 @@ function createQueuesController({ queuesService }) {
     getQueueEntries,
     removeFirstPatientFromStationQueue,
     removePatientsFromStationQueue,
+    restoreLastRemovedToFront,
     updatePhlebotomyCounter,
   };
 }

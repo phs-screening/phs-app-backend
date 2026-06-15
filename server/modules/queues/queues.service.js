@@ -1,4 +1,26 @@
 function createQueuesService({ queuesRepository }) {
+  function parseQueueItemPatientId(queueItem) {
+    const [idPart] = String(queueItem).split(':');
+    const id = Number.parseInt(idPart.trim(), 10);
+    return Number.isFinite(id) ? id : null;
+  }
+
+  function buildLastRemoved(queueItems, user) {
+    return {
+      queueItems,
+      removedAt: new Date(),
+      removedBy: user?.email || user?.username || '',
+    };
+  }
+
+  function getExistingPatientIds(queueItems = []) {
+    return new Set(
+      queueItems
+        .map(parseQueueItemPatientId)
+        .filter((id) => id !== null),
+    );
+  }
+
   async function getQueueEntries() {
     const data = await queuesRepository.findQueueEntries();
     return { status: 200, body: { result: true, data } };
@@ -31,22 +53,96 @@ function createQueuesService({ queuesRepository }) {
     return { status: 200, body: { result: true } };
   }
 
-  async function removePatientsFromStationQueue(stationName, queueItems) {
+  async function removePatientsFromStationQueue(stationName, queueItems, user) {
     if (!stationName || !Array.isArray(queueItems)) {
       return { status: 400, body: { result: false, error: 'stationName and queueItems required' } };
     }
 
-    await queuesRepository.removeQueueItems(stationName, queueItems);
-    return { status: 200, body: { result: true } };
+    const stationQueue = await queuesRepository.findStationQueue(stationName);
+    if (!stationQueue) {
+      return { status: 404, body: { result: false, error: 'Station queue not found' } };
+    }
+
+    const requestedItems = new Set(queueItems);
+    const removedItems = (stationQueue.queueItems || []).filter((item) => requestedItems.has(item));
+    if (removedItems.length === 0) {
+      return {
+        status: 404,
+        body: { result: false, error: 'No matching patients found in this station queue' },
+      };
+    }
+
+    const updated = await queuesRepository.removeQueueItems(
+      stationName,
+      removedItems,
+      buildLastRemoved(removedItems, user),
+    );
+    return { status: 200, body: { result: true, data: updated?.value || updated } };
   }
 
-  async function removeFirstPatientFromStationQueue(stationName) {
+  async function removeFirstPatientFromStationQueue(stationName, user) {
     if (!stationName) {
       return { status: 400, body: { result: false, error: 'stationName required' } };
     }
 
-    await queuesRepository.removeFirstQueueItem(stationName);
-    return { status: 200, body: { result: true } };
+    const stationQueue = await queuesRepository.findStationQueue(stationName);
+    if (!stationQueue) {
+      return { status: 404, body: { result: false, error: 'Station queue not found' } };
+    }
+
+    const firstItem = stationQueue.queueItems?.[0];
+    if (!firstItem) {
+      return { status: 404, body: { result: false, error: 'Station queue is empty' } };
+    }
+
+    const updated = await queuesRepository.updateStationQueue(stationName, {
+      $pop: { queueItems: -1 },
+      $set: { lastRemoved: buildLastRemoved([firstItem], user) },
+    });
+    return { status: 200, body: { result: true, data: updated?.value || updated } };
+  }
+
+  async function restoreLastRemovedToFront(stationName) {
+    if (!stationName) {
+      return { status: 400, body: { result: false, error: 'stationName required' } };
+    }
+
+    const stationQueue = await queuesRepository.findStationQueue(stationName);
+    if (!stationQueue) {
+      return { status: 404, body: { result: false, error: 'Station queue not found' } };
+    }
+
+    const lastRemovedItems = stationQueue.lastRemoved?.queueItems || [];
+    if (lastRemovedItems.length === 0) {
+      return { status: 400, body: { result: false, error: 'No recently removed patients to restore' } };
+    }
+
+    const existingIds = getExistingPatientIds(stationQueue.queueItems || []);
+    const itemsToRestore = lastRemovedItems.filter((item) => {
+      const id = parseQueueItemPatientId(item);
+      return id !== null && !existingIds.has(id);
+    });
+
+    const update =
+      itemsToRestore.length > 0
+        ? {
+            $push: { queueItems: { $each: itemsToRestore, $position: 0 } },
+            $set: { lastRemoved: null },
+          }
+        : {
+            $set: { lastRemoved: null },
+          };
+
+    const updated = await queuesRepository.updateStationQueue(stationName, update);
+
+    return {
+      status: 200,
+      body: {
+        result: true,
+        data: updated?.value || updated,
+        restoredCount: itemsToRestore.length,
+      },
+    };
   }
 
   async function getQueueCounters() {
@@ -78,6 +174,7 @@ function createQueuesService({ queuesRepository }) {
     getQueueEntries,
     removeFirstPatientFromStationQueue,
     removePatientsFromStationQueue,
+    restoreLastRemovedToFront,
     updatePhlebotomyCounter,
   };
 }
