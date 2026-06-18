@@ -1,8 +1,8 @@
 const jwt = require('jsonwebtoken');
-const { hashPassword } = require('../../../functions/hash.cjs');
+const { hashPassword, verifyPassword } = require('../../../functions/hash.cjs');
 
 function createAuthService({ authRepository, JWT_SECRET }) {
-  async function login({ email, password, type }) {
+  async function login({ email, password }) {
     if (!email || !password) {
       return { status: 400, body: { result: false, error: 'Email and password are required.' } };
     }
@@ -12,15 +12,9 @@ function createAuthService({ authRepository, JWT_SECRET }) {
       return { status: 401, body: { result: false, error: 'Invalid email or password.' } };
     }
 
-    const hashHex = await hashPassword(password);
-    if (type === 'Admin') {
-      if (user.password !== password) {
-        return { status: 401, body: { result: false, error: 'Invalid email or password.' } };
-      }
-    } else {
-      if (user.password !== hashHex) {
-        return { status: 401, body: { result: false, error: 'Invalid email or password.' } };
-      }
+    const validPassword = await verifyPassword(password, user.password);
+    if (!validPassword) {
+      return { status: 401, body: { result: false, error: 'Invalid email or password.' } };
     }
 
     await authRepository.updateLastLogin(email);
@@ -45,11 +39,11 @@ function createAuthService({ authRepository, JWT_SECRET }) {
       return { status: 200, body: { result: false, error: 'Email already taken' } };
     }
 
-    const hashHex = await hashPassword(password);
+    const passwordHash = await hashPassword(password);
     const insertResult = await authRepository.insertUser({
       username: email,
       email: email,
-      password: hashHex,
+      password: passwordHash,
       is_admin: false,
       last_login: new Date(),
     });
@@ -79,8 +73,8 @@ function createAuthService({ authRepository, JWT_SECRET }) {
       return { status: 400, body: { result: false, error: 'New password is required' } };
     }
 
-    const hashHex = await hashPassword(newPassword);
-    await authRepository.updatePassword(username, hashHex);
+    const passwordHash = await hashPassword(newPassword);
+    await authRepository.updatePassword(username, passwordHash);
     return { status: 200, body: { result: true, message: 'Password reset successfully' } };
   }
 
