@@ -24,6 +24,33 @@ npm run dev
 
 By default, the server listens on `http://localhost:3000`.
 
+## Load Testing
+
+The backend has a small k6 login test for `/api/handleLogin`.
+
+Install k6 first:
+
+```bash
+winget install k6
+```
+
+Start the backend in one terminal:
+
+```bash
+npm run dev
+```
+
+Run the login test from `phs-app-backend` in another terminal:
+
+```bash
+$env:BASE_URL = "http://localhost:3000/api"
+$env:LOGIN_EMAIL = "test-volunteer@example.com"
+$env:LOGIN_PASSWORD = "test-password"
+npm run load:login
+```
+
+Use a real test volunteer account. Do not use production credentials for local or staging load tests.
+
 ## Environment
 
 Create a `.env` file with:
@@ -71,6 +98,11 @@ server/
       auth.repository.js   # MongoDB access for profiles
       auth.routes.js       # Auth endpoint declarations
       auth.service.js      # Login, signup, reset, and account workflows
+    eventDashboard/
+      eventDashboard.controller.js # Request/response handling for event dashboard endpoints
+      eventDashboard.repository.js # MongoDB aggregate reads for event-level statistics
+      eventDashboard.routes.js     # Event dashboard endpoint declarations
+      eventDashboard.service.js    # Dashboard summary and incomplete-patient workflows
     forms/
       formRegistry.js      # Central form metadata and collection mapping
       forms.controller.js  # Request/response handling for form endpoints
@@ -151,6 +183,8 @@ POST /api/patients/:patientId/station-counts/recalculate
 GET  /api/forms/registry
 GET  /api/queues
 PATCH /api/queues/stations/:stationName/items/restore-last-removed
+GET  /api/event-dashboard/summary
+GET  /api/event-dashboard/incomplete-patients?q=...&page=1&limit=25
 GET  /api/docPdfQueue
 POST /api/docPdfQueue
 GET  /api/formAPdfQueue
@@ -269,6 +303,51 @@ Removing patients from a station overwrites that station's `lastRemoved` batch w
 - visited and eligible station names/counts
 
 `POST /api/patients/:patientId/station-counts/recalculate` persists the same computed counts into the `stationCounts` collection. Form submissions call this recalculation after successful saves, so station counts stay aligned with backend rules.
+
+## Event Dashboard Notes
+
+The event dashboard endpoints are read-only and protected by normal JWT authentication.
+
+`GET /api/event-dashboard/summary` returns event-level operating statistics:
+
+```js
+{
+  result: true,
+  data: {
+    registeredPatients: 100,
+    screeningPatients: 72,
+    completedPatients: 28,
+    bottleneckStation: { stationName: "Triage", count: 14 },
+    stationQueues: [{ stationName: "Triage", count: 14 }],
+    printQueues: [{ queueKey: "formA", queueName: "formAPdfQueue", count: 5 }],
+    refreshedAt: "2026-06-10T12:00:00.000Z"
+  }
+}
+```
+
+For the MVP, a patient is considered completed when the patient document has a `summaryForm` marker. Therefore:
+
+```text
+completedPatients = patients with summaryForm
+screeningPatients = all patients - completedPatients
+```
+
+Station queue counts are derived from the `queue` collection by counting each station's `queueItems`. Print queue counts are pending counts where `printed: false` for each queue in `printQueueRegistry.js`.
+
+`GET /api/event-dashboard/incomplete-patients?q=...&page=1&limit=25` returns paginated patients without a `summaryForm` marker. `q` is optional and searches by case-insensitive `initials`; numeric `q` values also match exact `queueNo`. `limit` defaults to `25` and is capped at `100`.
+
+The incomplete-patient rows include `queueNo`, `initials`, `age`, and `currentQueue`. `currentQueue` is derived by reading the station queue documents once and matching the patient ID inside each queue's stored item strings. It has the shape:
+
+```js
+{
+  stationName: "Triage",
+  position: 4
+}
+```
+
+If a patient is not currently in any station queue, `currentQueue` is `null`.
+
+The endpoint also includes cached station count fields from the `stationCounts` collection when available. These cached station counts are useful for diagnostics, but they should not be treated as the canonical yearly station definition; station definitions remain in `stationRegistry.js`.
 
 ## Yearly Station Changes
 
