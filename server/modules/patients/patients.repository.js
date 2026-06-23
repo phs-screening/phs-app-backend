@@ -162,6 +162,18 @@ function createPatientsRepository({ getDb }) {
     return db.collection(collection).findOne(filter);
   }
 
+  async function findSummaryReportForms(formDefinitions, patientId) {
+    const db = await getDb();
+    const entries = await Promise.all(
+      Object.entries(formDefinitions).map(async ([key, form]) => {
+        const document = await db.collection(form.collection).findOne({ _id: patientId });
+        return [key, document || {}];
+      }),
+    );
+
+    return Object.fromEntries(entries);
+  }
+
   async function findRecordByInitials(collection, initials) {
     const db = await getDb();
     return db.collection(collection).findOne({ initials });
@@ -175,6 +187,7 @@ function createPatientsRepository({ getDb }) {
     findPatientNames,
     findPatientMatchesByInitials,
     findRecordByCollectionAndId,
+    findSummaryReportForms,
     findRecordByInitials,
   };
 }

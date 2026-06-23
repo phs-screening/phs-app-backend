@@ -1,4 +1,52 @@
 const { buildStationCompletionStatus } = require("../stations/stationRegistry");
+const { getFormDefinition } = require("../forms/formRegistry");
+
+const summaryReportFormKeys = {
+  registration: "registration",
+  hcsr: "hxHcsr",
+  nss: "hxNss",
+  social: "hxSocial",
+  cancer: "hxCancer",
+  vision: "geriVision",
+  fit: "fit",
+  wce: "wce",
+  phlebotomy: "phlebotomy",
+  geriPtConsult: "geriPtConsult",
+  geriVision: "ophthal",
+  geriAudiometry: "audiometry",
+  geriOtConsult: "geriOtConsult",
+  geriEbasDep: "geriEbasDep",
+  geriMmse: "geriMmse",
+  geriAmt: "geriAmt",
+  socialService: "socialService",
+  doctorSConsult: "doctorConsult",
+  dietitiansConsult: "dietitiansConsult",
+  oralHealth: "oralHealth",
+  triage: "triage",
+  vaccine: "vaccine",
+  lung: "lungFunction",
+  nkf: "nkf",
+  hsg: "hsg",
+  grace: "geriGrace",
+  hearts: "geriWh",
+  mental: "mentalHealth",
+  podiatry: "podiatry",
+  mammobus: "mammobus",
+  hpv: "hpv",
+};
+
+function getSummaryReportFormDefinitions() {
+  return Object.fromEntries(
+    Object.entries(summaryReportFormKeys).map(([responseKey, formKey]) => {
+      const form = getFormDefinition(formKey);
+      if (!form) {
+        throw new Error(`Missing summary report form definition: ${formKey}`);
+      }
+
+      return [responseKey, form];
+    }),
+  );
+}
 
 function createPatientsService({ patientsRepository }) {
   async function createPatient(input, user) {
@@ -152,6 +200,40 @@ function createPatientsService({ patientsRepository }) {
     return { status: 200, body: { result: true, data: status } };
   }
 
+  async function getSummaryReportData(patientId) {
+    if (Number.isNaN(patientId)) {
+      return {
+        status: 400,
+        body: { result: false, error: "Invalid patient id" },
+      };
+    }
+
+    const patient = await patientsRepository.findPatientByQueueNo(patientId);
+    if (!patient) {
+      return {
+        status: 404,
+        body: { result: false, error: "Patient not found" },
+      };
+    }
+
+    const forms = await patientsRepository.findSummaryReportForms(
+      getSummaryReportFormDefinitions(),
+      patientId,
+    );
+
+    return {
+      status: 200,
+      body: {
+        result: true,
+        data: {
+          patientId,
+          patients: patient,
+          ...forms,
+        },
+      },
+    };
+  }
+
   return {
     createPatient,
     getPatientRecord,
@@ -159,6 +241,7 @@ function createPatientsService({ patientsRepository }) {
     getPatientNameMatches,
     getPatientByInitials,
     getPatientFormsStatus,
+    getSummaryReportData,
   };
 }
 

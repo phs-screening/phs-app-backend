@@ -76,6 +76,17 @@ function createPatientsController({ patientsService }) {
     }
   }
 
+  async function getSummaryReportData(req, res) {
+    const patientId = parseInt(req.params.id, 10);
+
+    try {
+      const result = await patientsService.getSummaryReportData(patientId);
+      return sendServiceResult(res, result);
+    } catch (e) {
+      return res.status(500).json({ result: false, error: e.message });
+    }
+  }
+
   return {
     createPatient,
     getPatient,
@@ -84,6 +95,7 @@ function createPatientsController({ patientsService }) {
     getPatientByInitials,
     searchPatients,
     getPatientFormsStatus,
+    getSummaryReportData,
   };
 }
 
