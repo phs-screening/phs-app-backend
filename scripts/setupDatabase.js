@@ -74,6 +74,10 @@ async function setup() {
         { patientId: 1 },
         { name: "patientId_1" },
       );
+      await db.collection(collection).createIndex(
+        { printed: 1, patientId: 1, createdAt: -1, _id: -1 },
+        { name: "printed_patientId_createdAt_id" },
+      );
     }
 
     const seq = await advancePatientQueueCounter(db);

@@ -11,7 +11,7 @@ function createQueuesRepository({ getDb }) {
 
   async function insertStationQueue(stationName) {
     const queue = await getCollection('queue');
-    return queue.insertOne({ stationName, queueItems: [] });
+    return queue.insertOne({ stationName, queueItems: [], lastRemoved: null });
   }
 
   async function deleteStationQueue(stationName) {
@@ -28,21 +28,29 @@ function createQueuesRepository({ getDb }) {
     );
   }
 
-  async function removeQueueItems(stationName, queueItems) {
+  async function findStationQueue(stationName) {
+    const queue = await getCollection('queue');
+    return queue.findOne({ stationName });
+  }
+
+  async function updateStationQueue(stationName, update) {
     const queue = await getCollection('queue');
     return queue.findOneAndUpdate(
       { stationName },
-      { $pullAll: { queueItems } },
+      update,
       { returnDocument: 'after' },
     );
   }
 
-  async function removeFirstQueueItem(stationName) {
+  async function removeQueueItems(stationName, queueItems, lastRemoved) {
     const queue = await getCollection('queue');
     return queue.findOneAndUpdate(
       { stationName },
-      { $pop: { queueItems: -1 } },
-      { upsert: true, returnDocument: 'after' },
+      {
+        $pullAll: { queueItems },
+        $set: { lastRemoved },
+      },
+      { returnDocument: 'after' },
     );
   }
 
@@ -68,12 +76,13 @@ function createQueuesRepository({ getDb }) {
   return {
     addQueueItems,
     deleteStationQueue,
+    findStationQueue,
     findQueueCounters,
     findQueueEntries,
     getNextPatientQueueNo,
     insertStationQueue,
-    removeFirstQueueItem,
     removeQueueItems,
+    updateStationQueue,
     updatePhlebotomyCounter,
   };
 }

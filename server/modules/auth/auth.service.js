@@ -1,6 +1,8 @@
 const jwt = require('jsonwebtoken');
 const { hashPassword } = require('../../../functions/hash.cjs');
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function createAuthService({ authRepository, JWT_SECRET }) {
   async function login({ email, password, type }) {
     if (!email || !password) {
@@ -37,6 +39,10 @@ function createAuthService({ authRepository, JWT_SECRET }) {
   async function signup({ email, password }) {
     if (!email || !password) {
       return { status: 400, body: { result: false, error: 'Email and password are required.' } };
+    }
+
+    if (!EMAIL_PATTERN.test(email)) {
+      return { status: 400, body: { result: false, error: 'Must be a valid email.' } };
     }
 
     const existing = await authRepository.findUserByUsername(email);

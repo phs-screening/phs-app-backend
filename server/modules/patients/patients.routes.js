@@ -11,7 +11,9 @@ function createPatientsRoutes({ getDb, authenticateToken }) {
 
   router.post('/patients', authenticateToken, patientsController.createPatient);
   router.get('/patients/names', authenticateToken, patientsController.getPatientNames);
+  router.get('/patients/name-matches', authenticateToken, patientsController.getPatientNameMatches);
   router.get('/patients/search', authenticateToken, patientsController.searchPatients);
+  router.get('/patients/:id/summary-report-data', authenticateToken, patientsController.getSummaryReportData);
   router.get('/patients/:id', authenticateToken, patientsController.getPatient);
   router.get('/patients/by-initials/:initials', authenticateToken, patientsController.getPatientByInitials);
   router.get('/patients/:id/forms/status', authenticateToken, patientsController.getPatientFormsStatus);

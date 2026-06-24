@@ -171,7 +171,9 @@ POST /api/deleteAccount
 POST /api/resetPassword
 GET  /api/patients/:patientId
 GET  /api/patients/names
+GET  /api/patients/name-matches?initials=...&page=1&limit=10
 GET  /api/patients/search?initials=...
+GET  /api/patients/:patientId/summary-report-data
 GET  /api/patients/:patientId/forms/:formKey
 POST /api/patients/:patientId/forms/:formKey
 GET  /api/stations
@@ -180,6 +182,8 @@ GET  /api/patients/:patientId/station-eligibility
 GET  /api/patients/:patientId/station-summary
 POST /api/patients/:patientId/station-counts/recalculate
 GET  /api/forms/registry
+GET  /api/queues
+PATCH /api/queues/stations/:stationName/items/restore-last-removed
 GET  /api/event-dashboard/summary
 GET  /api/event-dashboard/incomplete-patients?q=...&page=1&limit=25
 GET  /api/docPdfQueue
@@ -189,6 +193,10 @@ POST /api/formAPdfQueue
 ```
 
 The form `formKey` should be one of the canonical keys in `server/modules/forms/formRegistry.js`, such as `registration`, `triage`, `hsg`, or `doctorConsult`.
+
+`GET /api/patients/name-matches` is the preferred endpoint when resolving a patient by name. Patient names are not unique, so this endpoint returns all exact case-insensitive name matches with `queueNo`, `initials`, `age`, and `birthday` from `registrationForm.registrationQ3`. Use it instead of the older single-record `/api/patients/search?initials=...` flow when the user needs to choose the correct patient.
+
+`GET /api/patients/:patientId/summary-report-data` returns the patient record plus all form documents needed by the frontend screening summary report in one request. Missing optional forms are returned as empty objects so report generation can continue with partial data. Use this endpoint instead of issuing one request per form from `SummaryForm.jsx`.
 
 Station routes are backed by the registry in `server/modules/stations/stationRegistry.js`:
 
@@ -254,6 +262,35 @@ DELETE /api/formAPdfQueue/:id
 ```
 
 Queue-specific differences live in `server/modules/printQueues/printQueueRegistry.js`.
+
+The queue list endpoints support optional patient ID filtering with pagination:
+
+```text
+GET /api/docPdfQueue?page=1&limit=25&patientId=123
+GET /api/docPdfQueue/printed?page=1&limit=25&patientId=123
+GET /api/formAPdfQueue?page=1&limit=25&patientId=123
+GET /api/formAPdfQueue/printed?page=1&limit=25&patientId=123
+```
+
+The filter matches both numeric and string stored `patientId` values for compatibility with older or manually inserted records. `npm run db:setup` creates a compound `{ printed, patientId, createdAt, _id }` index for these filtered queue/history reads.
+
+## Station Queue Notes
+
+Station queues are stored in the `queue` collection. Each station document stores `queueItems` and an optional `lastRemoved` batch:
+
+```js
+{
+  stationName: "Triage",
+  queueItems: ["12: Mr Tan"],
+  lastRemoved: {
+    queueItems: ["11: Ms Lim"],
+    removedAt: Date,
+    removedBy: "volunteer@example.com"
+  }
+}
+```
+
+Removing patients from a station overwrites that station's `lastRemoved` batch with the actual queue item strings removed. `PATCH /api/queues/stations/:stationName/items/restore-last-removed` restores that batch to the front of the queue, skips patients whose IDs are already present, and clears `lastRemoved`.
 
 ## Station Status Notes
 

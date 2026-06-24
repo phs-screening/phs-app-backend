@@ -46,6 +46,22 @@ function createPrintQueuesService({ printQueuesRepository }) {
     };
   }
 
+  function parsePatientIdFilter(query = {}) {
+    const value = String(query.patientId ?? "").trim();
+    if (!value) return { value: null };
+
+    if (!/^\d+$/.test(value) || Number.parseInt(value, 10) <= 0) {
+      return {
+        error: {
+          status: 400,
+          body: { result: false, error: "Patient ID must be a positive number" },
+        },
+      };
+    }
+
+    return { value };
+  }
+
   function buildPagination({ page, limit, total }) {
     const totalPages = Math.ceil(total / limit);
 
@@ -64,10 +80,16 @@ function createPrintQueuesService({ printQueuesRepository }) {
     if (!queue) return unknownQueueResult();
 
     const pagination = parsePagination(query);
+    const patientIdFilter = parsePatientIdFilter(query);
+    if (patientIdFilter.error) return patientIdFilter.error;
+
     const result = await printQueuesRepository.findByPrintedStatus(
       queue,
       printed,
-      pagination,
+      {
+        pagination,
+        patientId: patientIdFilter.value,
+      },
     );
 
     if (!pagination) {

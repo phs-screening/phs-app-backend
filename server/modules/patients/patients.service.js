@@ -1,4 +1,52 @@
 const { buildStationCompletionStatus } = require("../stations/stationRegistry");
+const { getFormDefinition } = require("../forms/formRegistry");
+
+const summaryReportFormKeys = {
+  registration: "registration",
+  hcsr: "hxHcsr",
+  nss: "hxNss",
+  social: "hxSocial",
+  cancer: "hxCancer",
+  vision: "geriVision",
+  fit: "fit",
+  wce: "wce",
+  phlebotomy: "phlebotomy",
+  geriPtConsult: "geriPtConsult",
+  geriVision: "ophthal",
+  geriAudiometry: "audiometry",
+  geriOtConsult: "geriOtConsult",
+  geriEbasDep: "geriEbasDep",
+  geriMmse: "geriMmse",
+  geriAmt: "geriAmt",
+  socialService: "socialService",
+  doctorSConsult: "doctorConsult",
+  dietitiansConsult: "dietitiansConsult",
+  oralHealth: "oralHealth",
+  triage: "triage",
+  vaccine: "vaccine",
+  lung: "lungFunction",
+  nkf: "nkf",
+  hsg: "hsg",
+  grace: "geriGrace",
+  hearts: "geriWh",
+  mental: "mentalHealth",
+  podiatry: "podiatry",
+  mammobus: "mammobus",
+  hpv: "hpv",
+};
+
+function getSummaryReportFormDefinitions() {
+  return Object.fromEntries(
+    Object.entries(summaryReportFormKeys).map(([responseKey, formKey]) => {
+      const form = getFormDefinition(formKey);
+      if (!form) {
+        throw new Error(`Missing summary report form definition: ${formKey}`);
+      }
+
+      return [responseKey, form];
+    }),
+  );
+}
 
 function createPatientsService({ patientsRepository }) {
   async function createPatient(input, user) {
@@ -61,6 +109,19 @@ function createPatientsService({ patientsRepository }) {
     };
   }
 
+  function buildPagination({ page, limit, total }) {
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      page,
+      limit,
+      total,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
+    };
+  }
+
   async function getPatientNames(query) {
     if (!hasPatientNamesQuery(query)) {
       const data = await patientsRepository.findPatientNames();
@@ -69,21 +130,40 @@ function createPatientsService({ patientsRepository }) {
 
     const options = parsePatientNamesPagination(query);
     const { data, total } = await patientsRepository.findPatientNames(options);
-    const totalPages = Math.ceil(total / options.limit);
 
     return {
       status: 200,
       body: {
         result: true,
         data,
-        pagination: {
-          page: options.page,
-          limit: options.limit,
-          total,
-          totalPages,
-          hasNextPage: options.page < totalPages,
-          hasPrevPage: options.page > 1,
-        },
+        pagination: buildPagination({ ...options, total }),
+      },
+    };
+  }
+
+  async function getPatientNameMatches(query) {
+    const initials = String(query.initials ?? "").trim();
+    if (!initials) {
+      return {
+        status: 400,
+        body: { result: false, error: "Patient name is required" },
+      };
+    }
+
+    const options = parsePatientNamesPagination(query);
+    const { data, total } =
+      await patientsRepository.findPatientMatchesByInitials({
+        initials,
+        page: options.page,
+        limit: options.limit,
+      });
+
+    return {
+      status: 200,
+      body: {
+        result: true,
+        data,
+        pagination: buildPagination({ ...options, total }),
       },
     };
   }
@@ -120,12 +200,48 @@ function createPatientsService({ patientsRepository }) {
     return { status: 200, body: { result: true, data: status } };
   }
 
+  async function getSummaryReportData(patientId) {
+    if (Number.isNaN(patientId)) {
+      return {
+        status: 400,
+        body: { result: false, error: "Invalid patient id" },
+      };
+    }
+
+    const patient = await patientsRepository.findPatientByQueueNo(patientId);
+    if (!patient) {
+      return {
+        status: 404,
+        body: { result: false, error: "Patient not found" },
+      };
+    }
+
+    const forms = await patientsRepository.findSummaryReportForms(
+      getSummaryReportFormDefinitions(),
+      patientId,
+    );
+
+    return {
+      status: 200,
+      body: {
+        result: true,
+        data: {
+          patientId,
+          patients: patient,
+          ...forms,
+        },
+      },
+    };
+  }
+
   return {
     createPatient,
     getPatientRecord,
     getPatientNames,
+    getPatientNameMatches,
     getPatientByInitials,
     getPatientFormsStatus,
+    getSummaryReportData,
   };
 }
 

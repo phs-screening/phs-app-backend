@@ -33,6 +33,15 @@ function createPatientsController({ patientsService }) {
     }
   }
 
+  async function getPatientNameMatches(req, res) {
+    try {
+      const result = await patientsService.getPatientNameMatches(req.query);
+      return sendServiceResult(res, result);
+    } catch (e) {
+      return res.status(500).json({ result: false, error: e.message });
+    }
+  }
+
   async function getPatientByInitials(req, res) {
     const patientName = req.params.initials;
     const collection = req.query.collection || 'patients';
@@ -67,13 +76,26 @@ function createPatientsController({ patientsService }) {
     }
   }
 
+  async function getSummaryReportData(req, res) {
+    const patientId = parseInt(req.params.id, 10);
+
+    try {
+      const result = await patientsService.getSummaryReportData(patientId);
+      return sendServiceResult(res, result);
+    } catch (e) {
+      return res.status(500).json({ result: false, error: e.message });
+    }
+  }
+
   return {
     createPatient,
     getPatient,
     getPatientNames,
+    getPatientNameMatches,
     getPatientByInitials,
     searchPatients,
     getPatientFormsStatus,
+    getSummaryReportData,
   };
 }
 
