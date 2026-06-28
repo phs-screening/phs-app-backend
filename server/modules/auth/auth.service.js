@@ -2,6 +2,10 @@ const jwt = require('jsonwebtoken');
 const { hashPassword } = require('../../../functions/hash.cjs');
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PASSWORD_PATTERN =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,}$/;
+const PASSWORD_POLICY_ERROR =
+  'Password must contain at least one uppercase, one lowercase, one number and one special character and be 12 characters long';
 
 function createAuthService({ authRepository, JWT_SECRET }) {
   async function login({ email, password, type }) {
@@ -45,6 +49,10 @@ function createAuthService({ authRepository, JWT_SECRET }) {
       return { status: 400, body: { result: false, error: 'Must be a valid email.' } };
     }
 
+    if (!PASSWORD_PATTERN.test(password)) {
+      return { status: 400, body: { result: false, error: PASSWORD_POLICY_ERROR } };
+    }
+
     const existing = await authRepository.findUserByUsername(email);
     if (existing) {
       console.log('Email already taken:', email);
@@ -83,6 +91,9 @@ function createAuthService({ authRepository, JWT_SECRET }) {
     }
     if (!newPassword) {
       return { status: 400, body: { result: false, error: 'New password is required' } };
+    }
+    if (!PASSWORD_PATTERN.test(newPassword)) {
+      return { status: 400, body: { result: false, error: PASSWORD_POLICY_ERROR } };
     }
 
     const hashHex = await hashPassword(newPassword);
