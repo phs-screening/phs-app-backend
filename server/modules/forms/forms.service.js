@@ -3,6 +3,7 @@ const {
   getFormInfo,
   getFormRegistryInfo,
 } = require("./formRegistry");
+const { applyFormDerivations } = require("./formDerivations");
 
 function createFormsService({ formsRepository, onFormSubmitted, onFormAReadyCheck }) {
   async function recalculateStationCounts(patientId) {
@@ -51,18 +52,20 @@ function createFormsService({ formsRepository, onFormSubmitted, onFormAReadyChec
       };
     }
 
+    const payloadWithDerivations = applyFormDerivations(formCollection, payload);
+
     if (patient[formCollection] === undefined) {
       await formsRepository.insertFormDocument(
         formCollection,
         patientId,
-        payload,
+        payloadWithDerivations,
       );
 
       await formsRepository.updatePatient(patientId, {
         $set: { [formCollection]: patientId },
       });
 
-      await applyPatientSideEffects(formCollection, patientId, payload);
+      await applyPatientSideEffects(formCollection, patientId, payloadWithDerivations);
       await recalculateStationCounts(patientId);
       await maybeEnqueueFormA(patientId);
 
@@ -71,7 +74,7 @@ function createFormsService({ formsRepository, onFormSubmitted, onFormAReadyChec
 
     if (user.is_admin) {
       const updatedPayload = {
-        ...payload,
+        ...payloadWithDerivations,
         lastEdited: new Date(),
         lastEditedBy: user.email,
       };
@@ -81,7 +84,7 @@ function createFormsService({ formsRepository, onFormSubmitted, onFormAReadyChec
         patientId,
         updatedPayload,
       );
-      await applyPatientSideEffects(formCollection, patientId, payload);
+      await applyPatientSideEffects(formCollection, patientId, updatedPayload);
       await recalculateStationCounts(patientId);
       await maybeEnqueueFormA(patientId);
 
@@ -197,8 +200,9 @@ function createFormsService({ formsRepository, onFormSubmitted, onFormAReadyChec
 
     const parsed =
       typeof formData === "string" ? JSON.parse(formData) : formData;
+    const parsedWithDerivations = applyFormDerivations(form, parsed);
 
-    await formsRepository.upsertFormDocument(form, id, parsed, user.email);
+    await formsRepository.upsertFormDocument(form, id, parsedWithDerivations, user.email);
     await formsRepository.updatePatient(id, { $set: { [form]: id } });
     await recalculateStationCounts(id);
     await maybeEnqueueFormA(id);
