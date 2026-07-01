@@ -4,6 +4,9 @@ const createAuthService = require('../../server/modules/auth/auth.service');
 const { hashPassword } = require('../../functions/hash.cjs');
 
 const JWT_SECRET = 'test-secret';
+const STRONG_PASSWORD = 'StrongPass1!';
+const PASSWORD_POLICY_ERROR =
+  'Password must contain at least one uppercase, one lowercase, one number and one special character and be 12 characters long';
 
 function createAuthRepository(overrides = {}) {
   return {
@@ -146,7 +149,7 @@ describe('auth.service', () => {
       const service = createService(authRepository);
 
       await expect(
-        service.signup({ email: 'taken@example.com', password: 'secret' })
+        service.signup({ email: 'taken@example.com', password: STRONG_PASSWORD })
       ).resolves.toEqual({
         status: 200,
         body: { result: false, error: 'Email already taken' },
@@ -155,12 +158,27 @@ describe('auth.service', () => {
       expect(authRepository.insertUser).not.toHaveBeenCalled();
     });
 
-    it('hashes the password and inserts a new non-admin user', async () => {
+    it('returns 400 when the password does not meet the password policy', async () => {
       const authRepository = createAuthRepository();
       const service = createService(authRepository);
 
       await expect(
         service.signup({ email: 'new@example.com', password: 'secret' })
+      ).resolves.toEqual({
+        status: 400,
+        body: { result: false, error: PASSWORD_POLICY_ERROR },
+      });
+
+      expect(authRepository.findUserByUsername).not.toHaveBeenCalled();
+      expect(authRepository.insertUser).not.toHaveBeenCalled();
+    });
+
+    it('hashes the password and inserts a new non-admin user', async () => {
+      const authRepository = createAuthRepository();
+      const service = createService(authRepository);
+
+      await expect(
+        service.signup({ email: 'new@example.com', password: STRONG_PASSWORD })
       ).resolves.toEqual({
         status: 200,
         body: { result: true, message: 'Account registered successfully.' },
@@ -170,7 +188,7 @@ describe('auth.service', () => {
         expect.objectContaining({
           username: 'new@example.com',
           email: 'new@example.com',
-          password: await hashPassword('secret'),
+          password: await hashPassword(STRONG_PASSWORD),
           is_admin: false,
           last_login: expect.any(Date),
         })
@@ -230,7 +248,7 @@ describe('auth.service', () => {
       const service = createService(authRepository);
 
       await expect(
-        service.resetPassword({ username: 'user@example.com', newPassword: 'new-secret' })
+        service.resetPassword({ username: 'user@example.com', newPassword: STRONG_PASSWORD })
       ).resolves.toEqual({
         status: 200,
         body: { result: true, message: 'Password reset successfully' },
@@ -238,8 +256,25 @@ describe('auth.service', () => {
 
       expect(authRepository.updatePassword).toHaveBeenCalledWith(
         'user@example.com',
-        await hashPassword('new-secret')
+        await hashPassword(STRONG_PASSWORD)
       );
+    });
+
+    it('returns 400 when the new password does not meet the password policy', async () => {
+      const authRepository = createAuthRepository();
+      const service = createService(authRepository);
+
+      await expect(
+        service.resetPassword({
+          username: 'user@example.com',
+          newPassword: 'new-secret',
+        })
+      ).resolves.toEqual({
+        status: 400,
+        body: { result: false, error: PASSWORD_POLICY_ERROR },
+      });
+
+      expect(authRepository.updatePassword).not.toHaveBeenCalled();
     });
   });
 });
