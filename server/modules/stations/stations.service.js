@@ -139,6 +139,17 @@ function createStationsService({ stationsRepository }) {
       };
     }
 
+    const cachedStatus = await stationsRepository.findStationStatus(patientId);
+    if (cachedStatus) {
+      return {
+        status: 200,
+        body: {
+          result: true,
+          data: cachedStatus,
+        },
+      };
+    }
+
     const summary = await buildPatientStationSummary(patientId);
     if (!summary) {
       return {
@@ -147,6 +158,16 @@ function createStationsService({ stationsRepository }) {
       };
     }
 
+    // Save to cache for subsequent requests
+    await stationsRepository.saveStationStatus(patientId, {
+      stations: summary.stations,
+      status: summary.status,
+      visitedStationCount: summary.visitedStationCount,
+      eligibleStationCount: summary.eligibleStationCount,
+      visitedStations: summary.visitedStations,
+      eligibleStations: summary.eligibleStations,
+    });
+
     return {
       status: 200,
       body: {
@@ -154,6 +175,22 @@ function createStationsService({ stationsRepository }) {
         data: summary,
       },
     };
+  }
+
+  async function computeAndSaveStationStatus(patientId) {
+    const summary = await buildPatientStationSummary(patientId);
+    if (!summary) {
+      return;
+    }
+
+    await stationsRepository.saveStationStatus(patientId, {
+      stations: summary.stations,
+      status: summary.status,
+      visitedStationCount: summary.visitedStationCount,
+      eligibleStationCount: summary.eligibleStationCount,
+      visitedStations: summary.visitedStations,
+      eligibleStations: summary.eligibleStations,
+    });
   }
 
   async function recalculatePatientStationCounts(patientId) {
@@ -194,6 +231,7 @@ function createStationsService({ stationsRepository }) {
     getPatientStationEligibility,
     getPatientStationSummary,
     recalculatePatientStationCounts,
+    computeAndSaveStationStatus,
   };
 }
 

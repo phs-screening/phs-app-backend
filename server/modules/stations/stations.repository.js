@@ -1,15 +1,44 @@
 function createStationsRepository({ getDb }) {
-  async function findPatientByQueueNo(queueNo) {
-    const db = await getDb();
-    return db.collection("patients").findOne({ queueNo });
+  let indexesEnsured = false;
+
+  async function ensureIndexes(db) {
+    if (indexesEnsured) {
+      return;
+    }
+
+    await db.collection('patients').createIndex({ queueNo: 1 });
+    await db.collection('stationStatus').createIndex({ queueNo: 1 });
+    indexesEnsured = true;
   }
 
-  async function findFormByPatientId(collection, patientId) {
+  async function findPatientByQueueNo(queueNo) {
     const db = await getDb();
-    return db.collection(collection).findOne({ _id: patientId });
+    await ensureIndexes(db);
+    return db.collection('patients').findOne({ queueNo });
   }
 
   async function findEligibilityForms(patientId) {
+    const db = await getDb();
+
+    const collections = [
+      { name: 'hxNssForm', alias: 'pmhx' },
+      { name: 'hxSocialForm', alias: 'hxsocial' },
+      { name: 'registrationForm', alias: 'reg' },
+      { name: 'hxFamilyForm', alias: 'hxfamily' },
+      { name: 'triageForm', alias: 'triage' },
+      { name: 'hxHcsrForm', alias: 'hcsr' },
+      { name: 'hxOralForm', alias: 'hxoral' },
+      { name: 'wceForm', alias: 'wce' },
+      { name: 'geriPhqForm', alias: 'phq' },
+      { name: 'hxM4M5ReviewForm', alias: 'hxm4m5' },
+      { name: 'gynaeForm', alias: 'hxgynae' },
+      { name: 'ophthalForm', alias: 'ophthal' },
+    ];
+
+    const formPromises = collections.map(({ name }) =>
+      db.collection(name).findOne({ _id: patientId }),
+    );
+
     const [
       pmhx,
       hxsocial,
@@ -23,20 +52,7 @@ function createStationsRepository({ getDb }) {
       hxm4m5,
       hxgynae,
       ophthal,
-    ] = await Promise.all([
-      findFormByPatientId("hxNssForm", patientId),
-      findFormByPatientId("hxSocialForm", patientId),
-      findFormByPatientId("registrationForm", patientId),
-      findFormByPatientId("hxFamilyForm", patientId),
-      findFormByPatientId("triageForm", patientId),
-      findFormByPatientId("hxHcsrForm", patientId),
-      findFormByPatientId("hxOralForm", patientId),
-      findFormByPatientId("wceForm", patientId),
-      findFormByPatientId("geriPhqForm", patientId),
-      findFormByPatientId("hxM4M5ReviewForm", patientId),
-      findFormByPatientId("gynaeForm", patientId),
-      findFormByPatientId("ophthalForm", patientId),
-    ]);
+    ] = await Promise.all(formPromises);
 
     return {
       reg: reg || {},
@@ -64,7 +80,7 @@ function createStationsRepository({ getDb }) {
     },
   ) {
     const db = await getDb();
-    return db.collection("stationCounts").updateOne(
+    return db.collection('stationCounts').updateOne(
       { queueNo: patientId },
       {
         $set: {
@@ -79,7 +95,29 @@ function createStationsRepository({ getDb }) {
     );
   }
 
-  return { findPatientByQueueNo, findEligibilityForms, updateStationCounts };
+  async function saveStationStatus(patientId, statusData) {
+    const db = await getDb();
+    await ensureIndexes(db);
+    return db.collection('stationStatus').updateOne(
+      { queueNo: patientId },
+      {
+        $set: {
+          queueNo: patientId,
+          ...statusData,
+          updatedAt: new Date(),
+        },
+      },
+      { upsert: true },
+    );
+  }
+
+  async function findStationStatus(patientId) {
+    const db = await getDb();
+    await ensureIndexes(db);
+    return db.collection('stationStatus').findOne({ queueNo: patientId });
+  }
+
+  return { findPatientByQueueNo, findEligibilityForms, updateStationCounts, saveStationStatus, findStationStatus };
 }
 
 module.exports = createStationsRepository;
