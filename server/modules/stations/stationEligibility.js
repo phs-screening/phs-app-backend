@@ -58,6 +58,11 @@ const eligibilityRules = {
 
   vaccination: ({ reg = {} }) => reg?.registrationQ4 >= 65,
 
+  scoliosis: ({ hxscoliosis = {} }) =>
+    ["SCOL1", "SCOL2", "SCOL3", "SCOL4", "SCOL5", "SCOL6"].some(
+      (question) => hxscoliosis?.[question] === "Yes",
+    ),
+
   doctorStation: ({
     triage = {},
     hcsr = {},
@@ -91,6 +96,7 @@ const eligibilityRows = [
   { name: "HPV On-Site Testing", rule: "hpv" },
   { name: "Audiometry", rule: "audiometry" },
   { name: "Vaccination", rule: "vaccination" },
+  { name: "Scoliosis", rule: "scoliosis" },
   { name: "Doctor's Station", rule: "doctorStation" },
 ];
 
