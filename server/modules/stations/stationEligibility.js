@@ -1,3 +1,9 @@
+// Bump this whenever you change any eligibility rule below. On the next
+// deploy/startup, the server recomputes every patient's cached station counts
+// once so the Event Dashboard reflects the new rules. See eligibilityCacheSync.js.
+// (Form A / the Eligibility page always compute live, so they never need this.)
+const ELIGIBILITY_RULES_VERSION = 1;
+
 const eligibilityRules = {
   healthierSg: ({ reg = {} }) => reg?.registrationQ11 !== "Yes",
 
@@ -117,4 +123,5 @@ module.exports = {
   getEligibilityRows,
   getEligibleStationNames,
   isEligible,
+  ELIGIBILITY_RULES_VERSION,
 };
