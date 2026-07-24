@@ -20,8 +20,7 @@ const eligibilityRules = {
 
   geriatricScreening: ({ reg = {} }) => reg?.registrationQ4 >= 60,
 
-  ophthalmology: ({ reg = {}, hcsr = {} }) =>
-    reg?.registrationQ4 >= 60 || hcsr?.hxHcsrQ3 === "Yes",
+  ophthalmology: ({ hcsr = {} }) => hcsr?.hxHcsrQ3 === "Yes",
 
   oralHealth: ({ pmhx = {}, hxsocial = {}, hxoral = {} }) =>
     pmhx?.PMHX5?.includes("Diabetes/Pre-Diabetic") ||
