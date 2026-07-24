@@ -122,4 +122,52 @@ describe("stationEligibility", () => {
       expect(isEligible("cancer365", {})).toBe(false);
     });
   });
+
+  describe("ltfu", () => {
+    it("is eligible above 60 with a qualifying condition", () => {
+      expect(
+        isEligible("ltfu", {
+          reg: { registrationQ4: 65 },
+          pmhx: { PMHX5: ["Hypertension"] },
+        }),
+      ).toBe(true);
+      expect(
+        isEligible("ltfu", {
+          reg: { registrationQ4: 61 },
+          pmhx: { PMHX5: ["Heart disease"] },
+        }),
+      ).toBe(true);
+    });
+
+    it("is eligible at exactly 60 (>= 60)", () => {
+      expect(
+        isEligible("ltfu", {
+          reg: { registrationQ4: 60 },
+          pmhx: { PMHX5: ["Diabetes/Pre-Diabetic"] },
+        }),
+      ).toBe(true);
+    });
+
+    it("is not eligible just under 60", () => {
+      expect(
+        isEligible("ltfu", {
+          reg: { registrationQ4: 59 },
+          pmhx: { PMHX5: ["Diabetes/Pre-Diabetic"] },
+        }),
+      ).toBe(false);
+    });
+
+    it("is not eligible above 60 with no qualifying condition", () => {
+      expect(
+        isEligible("ltfu", {
+          reg: { registrationQ4: 70 },
+          pmhx: { PMHX5: ["Kidney Disease"] },
+        }),
+      ).toBe(false);
+    });
+
+    it("is not eligible with no forms (default deny)", () => {
+      expect(isEligible("ltfu", {})).toBe(false);
+    });
+  });
 });

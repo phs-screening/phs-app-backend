@@ -93,6 +93,15 @@ const eligibilityRules = {
       phq?.PHQ9 === "1 - Several days" ||
       phq?.PHQ9 === "2 - More than half the days" ||
       phq?.PHQ9 === "3 - Nearly everyday"),
+
+  // LTFU (long-term follow-up): age >= 60 with at least one of hypertension,
+  // hyperlipidemia, diabetes, or heart disease (from PMHX5).
+  ltfu: ({ reg = {}, pmhx = {} }) =>
+    reg?.registrationQ4 >= 60 &&
+    (pmhx?.PMHX5?.includes("Hypertension") ||
+      pmhx?.PMHX5?.includes("Hyperlipidemia") ||
+      pmhx?.PMHX5?.includes("Diabetes/Pre-Diabetic") ||
+      pmhx?.PMHX5?.includes("Heart disease")),
 };
 
 const eligibilityRows = [
@@ -112,6 +121,7 @@ const eligibilityRows = [
   { name: "Vaccination", rule: "vaccination" },
   { name: "Scoliosis", rule: "scoliosis" },
   { name: "Doctor's Station", rule: "doctorStation" },
+  { name: "Long Term Follow Up", rule: "ltfu" },
 ];
 
 function isEligible(ruleName, forms = {}) {
