@@ -10,27 +10,31 @@ const eligibilityRules = {
 
   podiatry: ({ pmhx = {} }) => pmhx?.PMHX5?.includes("Diabetes/Pre-Diabetic"),
 
-  dietitian: ({ pmhx = {} }) =>
+  // Dietician: a relevant chronic condition, OR a poor diet, OR interest in
+  // seeing the dietician. PMHX5 "Others" covers fatty liver / respiratory.
+  // "Poor diet" = SOCIAL13 "No" (does not consciously eat fruit/veg/wholegrain);
+  // "interest" = SOCIAL15 "would benefit from a Dietitian consult".
+  dietitian: ({ pmhx = {}, hxsocial = {} }) =>
     pmhx?.PMHX5?.includes("Hypertension") ||
     pmhx?.PMHX5?.includes("Hyperlipidemia") ||
     pmhx?.PMHX5?.includes("Diabetes/Pre-Diabetic") ||
     pmhx?.PMHX5?.includes("Kidney Disease") ||
     pmhx?.PMHX5?.includes("Heart disease") ||
-    pmhx?.PMHX5?.includes("Others"),
+    pmhx?.PMHX5?.includes("Others") ||
+    hxsocial?.SOCIAL13 === "No" ||
+    hxsocial?.SOCIAL15 === "Yes",
 
   geriatricScreening: ({ reg = {} }) => reg?.registrationQ4 >= 60,
 
   ophthalmology: ({ hcsr = {} }) => hcsr?.hxHcsrQ3 === "Yes",
 
-  oralHealth: ({ pmhx = {}, hxsocial = {}, hxoral = {} }) =>
-    pmhx?.PMHX5?.includes("Diabetes/Pre-Diabetic") ||
-    hxsocial?.SOCIAL10 === "Yes" ||
-    hxsocial?.SOCIAL11 === "Yes" ||
-    hxoral?.ORAL1 === "Poor" ||
-    hxoral?.ORAL2 === "Yes" ||
+  // Dentistry: any reported dental concern (ORAL3 — the history-taker is shown a
+  // reference list of qualifying concerns in the form), OR (has not seen a dentist
+  // in 2 years AND is interested in an oral health consult). ORAL4 "No" = has NOT
+  // visited a dentist in the past 2 years.
+  oralHealth: ({ hxoral = {} }) =>
     hxoral?.ORAL3 === "Yes" ||
-    hxoral?.ORAL4 === "No" ||
-    hxoral?.ORAL5 === "Yes",
+    (hxoral?.ORAL4 === "No" && hxoral?.ORAL5 === "Yes"),
 
   socialServices: ({ hxsocial = {}, ophthal = {} }) =>
     hxsocial?.SOCIAL6 === "Yes" ||
