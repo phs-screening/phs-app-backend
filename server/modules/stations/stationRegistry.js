@@ -75,8 +75,10 @@ const stationRegistry = {
   cancer365: {
     key: "cancer365",
     displayName: "365 Cancer Screening",
+    eligibilityName: "365 Cancer Screening",
     route: "cancer365",
     requiredForms: ["cancer365"],
+    eligibilityRule: "cancer365",
     active: true,
   },
   fit: {
@@ -95,13 +97,13 @@ const stationRegistry = {
     eligibilityRule: "vaccination",
     active: true,
   },
+  // Retired: lung screening is now folded into 365 Cancer Screening. Kept
+  // inactive for historical records/routing; no eligibility rule any more.
   lungfn: {
     key: "lungfn",
     displayName: "Lung Function",
-    eligibilityName: "Lung Function Testing",
     route: "lungfn",
     requiredForms: ["lungFunction"],
-    eligibilityRule: "lungFunction",
     active: false,
   },
   podiatry: {

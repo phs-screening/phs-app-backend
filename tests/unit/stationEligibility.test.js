@@ -68,4 +68,58 @@ describe("stationEligibility", () => {
       ).toBe(false);
     });
   });
+
+  describe("cancer365", () => {
+    it("is gastric-eligible at 40+ with CHAS Blue", () => {
+      expect(
+        isEligible("cancer365", {
+          reg: { registrationQ4: 45, registrationQ12: "CHAS Blue" },
+        }),
+      ).toBe(true);
+    });
+
+    it("is gastric-eligible at 40+ with a public-assistance card", () => {
+      expect(
+        isEligible("cancer365", {
+          reg: {
+            registrationQ4: 45,
+            registrationQ12: "CHAS Green",
+            registrationQ16: "Yes",
+          },
+        }),
+      ).toBe(true);
+    });
+
+    it("is not eligible at 40+ without any subsidy", () => {
+      expect(
+        isEligible("cancer365", {
+          reg: {
+            registrationQ4: 45,
+            registrationQ12: "CHAS Green",
+            registrationQ16: "No",
+          },
+        }),
+      ).toBe(false);
+    });
+
+    it("is not eligible under 40 even with a subsidy", () => {
+      expect(
+        isEligible("cancer365", {
+          reg: { registrationQ4: 38, registrationQ12: "CHAS Blue" },
+        }),
+      ).toBe(false);
+    });
+
+    it("is eligible at 40+ with the CHAS Public Assistance tier", () => {
+      expect(
+        isEligible("cancer365", {
+          reg: { registrationQ4: 55, registrationQ12: "Public Assistance" },
+        }),
+      ).toBe(true);
+    });
+
+    it("is not eligible with no forms (default deny)", () => {
+      expect(isEligible("cancer365", {})).toBe(false);
+    });
+  });
 });

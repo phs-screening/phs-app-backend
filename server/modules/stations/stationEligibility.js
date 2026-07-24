@@ -1,10 +1,21 @@
 const eligibilityRules = {
   healthierSg: ({ reg = {} }) => reg?.registrationQ11 !== "Yes",
 
-  lungFunction: ({ reg = {}, hxsocial = {} }) =>
-    reg?.registrationQ21 === "Yes" &&
-    hxsocial?.SOCIAL16 === "Yes" &&
-    (hxsocial?.SOCIAL10 === "Yes" || hxsocial?.SOCIAL11 === "Yes"),
+  // 365 Cancer Screening: age >= 40 with a qualifying subsidy (CHAS Blue/Orange,
+  // CHAS Public Assistance, or a public-assistance card).
+  // The spec's lung arm (50-80, >= 20 pack-years, current/recent smoker) is a
+  // strict subset of this gastric condition — everyone lung-eligible is already
+  // gastric-eligible — so it never changes the Form A flag. Which actual screen
+  // (lung CT vs gastroscopy) is decided at the station from the smoking history.
+  cancer365: ({ reg = {} }) => {
+    const age = reg?.registrationQ4;
+    const hasSubsidy =
+      reg?.registrationQ12 === "CHAS Blue" ||
+      reg?.registrationQ12 === "CHAS Orange" ||
+      reg?.registrationQ12 === "Public Assistance" ||
+      reg?.registrationQ16 === "Yes";
+    return age >= 40 && hasSubsidy;
+  },
 
   womenCancerEducation: ({ reg = {} }) => reg?.registrationQ5 === "Female",
 
@@ -86,7 +97,7 @@ const eligibilityRules = {
 
 const eligibilityRows = [
   { name: "Healthier SG Booth", rule: "healthierSg" },
-  { name: "Lung Function Testing", rule: "lungFunction" },
+  { name: "365 Cancer Screening", rule: "cancer365" },
   { name: "Women's Cancer Education", rule: "womenCancerEducation" },
   { name: "Podiatry", rule: "podiatry" },
   { name: "Nutritionist's/Dietitian's Consult", rule: "dietitian" },
