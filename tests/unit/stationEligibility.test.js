@@ -200,4 +200,52 @@ describe("stationEligibility", () => {
       expect(isEligible("scoliosis", {})).toBe(false);
     });
   });
+
+  describe("socialServices", () => {
+    it("is eligible on a hx-Social need", () => {
+      expect(
+        isEligible("socialServices", { hxsocial: { SOCIAL6: "Yes" } }),
+      ).toBe(true);
+      expect(
+        isEligible("socialServices", { hxsocial: { SOCIAL7: "Yes" } }),
+      ).toBe(true);
+      expect(
+        isEligible("socialServices", {
+          hxsocial: { SOCIAL8: "Yes", SOCIAL9: "No" },
+        }),
+      ).toBe(true);
+    });
+
+    it("is not eligible for a caregiver who feels equipped", () => {
+      expect(
+        isEligible("socialServices", {
+          hxsocial: { SOCIAL8: "Yes", SOCIAL9: "Yes" },
+        }),
+      ).toBe(false);
+    });
+
+    it("is eligible on a Doctor's Station referral", () => {
+      expect(
+        isEligible("socialServices", {
+          doctorconsult: { doctorSConsultQ6: "Yes" },
+        }),
+      ).toBe(true);
+    });
+
+    it("is eligible on a Geriatrics-OT referral", () => {
+      expect(
+        isEligible("socialServices", { geriot: { geriOtConsultQ4: "Yes" } }),
+      ).toBe(true);
+    });
+
+    it("no longer uses the ophthal referral (OphthalQ13 dropped)", () => {
+      expect(
+        isEligible("socialServices", { ophthal: { OphthalQ13: "Yes" } }),
+      ).toBe(false);
+    });
+
+    it("is not eligible with no forms (default deny)", () => {
+      expect(isEligible("socialServices", {})).toBe(false);
+    });
+  });
 });

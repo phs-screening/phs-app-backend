@@ -47,11 +47,16 @@ const eligibilityRules = {
     hxoral?.ORAL3 === "Yes" ||
     (hxoral?.ORAL4 === "No" && hxoral?.ORAL5 === "Yes"),
 
-  socialServices: ({ hxsocial = {}, ophthal = {} }) =>
+  // Social Services: a hx-Social need (wants CHAS / needs financial advice /
+  // caregiver who feels unequipped), OR a referral from the Doctor's or the
+  // Geriatrics-OT station. Those two referral flags are recorded at their own
+  // stations, so this flips to eligible once that station logs the referral.
+  socialServices: ({ hxsocial = {}, doctorconsult = {}, geriot = {} }) =>
     hxsocial?.SOCIAL6 === "Yes" ||
     hxsocial?.SOCIAL7 === "Yes" ||
     (hxsocial?.SOCIAL8 === "Yes" && hxsocial?.SOCIAL9 === "No") ||
-    ophthal?.OphthalQ13 === "Yes",
+    doctorconsult?.doctorSConsultQ6 === "Yes" ||
+    geriot?.geriOtConsultQ4 === "Yes",
 
   mentalHealth: ({ reg = {}, phq = {} }) =>
     (phq?.PHQ10 >= 10 && reg?.registrationQ4 < 60) || phq?.PHQ11 === "Yes",
