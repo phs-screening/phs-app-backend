@@ -136,8 +136,10 @@ const stationRegistry = {
   scoliosis: {
     key: "scoliosis",
     displayName: "Scoliosis",
+    eligibilityName: "Scoliosis",
     route: "scoliosis",
     requiredForms: ["scoliosis"],
+    eligibilityRule: "scoliosis",
     active: true,
   },
   wce: {

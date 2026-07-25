@@ -170,4 +170,34 @@ describe("stationEligibility", () => {
       expect(isEligible("ltfu", {})).toBe(false);
     });
   });
+
+  describe("scoliosis", () => {
+    it("is eligible when any SCOL question is Yes", () => {
+      expect(isEligible("scoliosis", { hxscoliosis: { SCOL3: "Yes" } })).toBe(
+        true,
+      );
+      expect(isEligible("scoliosis", { hxscoliosis: { SCOL6: "Yes" } })).toBe(
+        true,
+      );
+    });
+
+    it("is not eligible when all SCOL answers are No", () => {
+      expect(
+        isEligible("scoliosis", {
+          hxscoliosis: {
+            SCOL1: "No",
+            SCOL2: "No",
+            SCOL3: "No",
+            SCOL4: "No",
+            SCOL5: "No",
+            SCOL6: "No",
+          },
+        }),
+      ).toBe(false);
+    });
+
+    it("is not eligible with no forms (default deny)", () => {
+      expect(isEligible("scoliosis", {})).toBe(false);
+    });
+  });
 });
