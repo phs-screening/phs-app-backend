@@ -293,4 +293,39 @@ describe("stationEligibility", () => {
       expect(isEligible("hpv", {})).toBe(false);
     });
   });
+
+  describe("doctorStation", () => {
+    it("is eligible via a History-Taking referral (M4/M5 flag + a concern)", () => {
+      expect(
+        isEligible("doctorStation", {
+          hxm4m5: { hxM4M5Q1: "Yes" },
+          triage: { triageQ9: "Yes" },
+        }),
+      ).toBe(true);
+    });
+
+    it("is not eligible when M4/M5 flags doctor but there is no concern", () => {
+      expect(
+        isEligible("doctorStation", { hxm4m5: { hxM4M5Q1: "Yes" } }),
+      ).toBe(false);
+    });
+
+    it("is eligible on a Dietician referral (independent of M4/M5)", () => {
+      expect(
+        isEligible("doctorStation", {
+          dietitiansconsult: { dietitiansConsultQ9: "Yes" },
+        }),
+      ).toBe(true);
+    });
+
+    it("is eligible on a Mental Health referral (independent of M4/M5)", () => {
+      expect(
+        isEligible("doctorStation", { mentalhealth: { SAMH3: "Yes" } }),
+      ).toBe(true);
+    });
+
+    it("is not eligible with no forms (default deny)", () => {
+      expect(isEligible("doctorStation", {})).toBe(false);
+    });
+  });
 });

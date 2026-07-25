@@ -83,22 +83,29 @@ const eligibilityRules = {
       (question) => hxscoliosis?.[question] === "Yes",
     ),
 
+  // Doctor's Station: a History-Taking referral (the M4/M5 flag plus a specific
+  // concern from triage / systems review / PMHx / PHQ), OR a referral logged at
+  // the Dietician station (dietitiansConsultQ9) or the Mental Health station
+  // (SAMH3). The latter two are independent — they don't require the M4/M5 gate.
   doctorStation: ({
     triage = {},
     hcsr = {},
     pmhx = {},
     phq = {},
     hxm4m5 = {},
+    dietitiansconsult = {},
+    mentalhealth = {},
   }) =>
-    hxm4m5?.hxM4M5Q1 === "Yes" &&
-    (triage?.triageQ9 === "Yes" ||
-      hcsr?.hxHcsrQ7 === "Yes" ||
-      hcsr?.hxHcsrQ6 === "Yes" ||
-      pmhx?.PMHX7 === "Yes" ||
-      phq?.PHQ10 >= 10 ||
-      phq?.PHQ9 === "1 - Several days" ||
-      phq?.PHQ9 === "2 - More than half the days" ||
-      phq?.PHQ9 === "3 - Nearly everyday"),
+    (hxm4m5?.hxM4M5Q1 === "Yes" &&
+      (triage?.triageQ9 === "Yes" ||
+        hcsr?.hxHcsrQ7 === "Yes" ||
+        hcsr?.hxHcsrQ6 === "Yes" ||
+        pmhx?.PMHX7 === "Yes" ||
+        phq?.PHQ9 === "1 - Several days" ||
+        phq?.PHQ9 === "2 - More than half the days" ||
+        phq?.PHQ9 === "3 - Nearly everyday")) ||
+    dietitiansconsult?.dietitiansConsultQ9 === "Yes" ||
+    mentalhealth?.SAMH3 === "Yes",
 
   // LTFU (long-term follow-up): age >= 60 with at least one of hypertension,
   // hyperlipidemia, diabetes, or heart disease (from PMHX5).
