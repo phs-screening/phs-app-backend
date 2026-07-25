@@ -9,6 +9,7 @@ const summaryReportFormKeys = {
   cancer: "hxCancer",
   vision: "geriVision",
   fit: "fit",
+  scoliosis: "scoliosis",
   wce: "wce",
   phlebotomy: "phlebotomy",
   geriPtConsult: "geriPtConsult",
