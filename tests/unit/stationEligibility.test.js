@@ -248,4 +248,49 @@ describe("stationEligibility", () => {
       expect(isEligible("socialServices", {})).toBe(false);
     });
   });
+
+  describe("hpv", () => {
+    const eligible = {
+      reg: { registrationQ5: "Female", registrationQ4: 30 },
+      hxgynae: { GYNAE14: "Yes", GYNAE15: "No", GYNAE16: "Yes" },
+    };
+
+    it("is eligible for a woman >= 25, sexually active, not pregnant, in window", () => {
+      expect(isEligible("hpv", eligible)).toBe(true);
+    });
+
+    it("is not eligible for a male", () => {
+      expect(
+        isEligible("hpv", {
+          ...eligible,
+          reg: { registrationQ5: "Male", registrationQ4: 30 },
+        }),
+      ).toBe(false);
+    });
+
+    it("is not eligible under 25", () => {
+      expect(
+        isEligible("hpv", {
+          ...eligible,
+          reg: { registrationQ5: "Female", registrationQ4: 24 },
+        }),
+      ).toBe(false);
+    });
+
+    it("is not eligible if never sexually active, pregnant, or out of window", () => {
+      expect(
+        isEligible("hpv", { ...eligible, hxgynae: { ...eligible.hxgynae, GYNAE14: "No" } }),
+      ).toBe(false);
+      expect(
+        isEligible("hpv", { ...eligible, hxgynae: { ...eligible.hxgynae, GYNAE15: "Yes" } }),
+      ).toBe(false);
+      expect(
+        isEligible("hpv", { ...eligible, hxgynae: { ...eligible.hxgynae, GYNAE16: "No" } }),
+      ).toBe(false);
+    });
+
+    it("is not eligible with no forms (default deny)", () => {
+      expect(isEligible("hpv", {})).toBe(false);
+    });
+  });
 });

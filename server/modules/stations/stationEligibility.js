@@ -63,13 +63,14 @@ const eligibilityRules = {
 
   mammobus: ({ reg = {} }) => reg.registrationQ19 === "Yes",
 
-  hpv: ({ hxgynae = {} }) =>
-    (hxgynae?.GYNAE12 === "5 years or longer" ||
-      hxgynae?.GYNAE12 === "Never before") &&
+  // HPV testing: women aged >= 25 who have ever had sexual intercourse (GYNAE14),
+  // are not pregnant (GYNAE15), and whose last menstrual period falls in the
+  // on-site testing window (GYNAE16 — the date is shown in the gynae form).
+  hpv: ({ reg = {}, hxgynae = {} }) =>
+    reg?.registrationQ5 === "Female" &&
+    reg?.registrationQ4 >= 25 &&
     hxgynae?.GYNAE14 === "Yes" &&
     hxgynae?.GYNAE15 === "No" &&
-    (hxgynae?.GYNAE13 === "3 years or longer" ||
-      hxgynae?.GYNAE13 === "Never before") &&
     hxgynae?.GYNAE16 === "Yes",
 
   audiometry: ({ reg = {}, hcsr = {} }) =>
