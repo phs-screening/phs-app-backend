@@ -328,4 +328,54 @@ describe("stationEligibility", () => {
       expect(isEligible("doctorStation", {})).toBe(false);
     });
   });
+
+  describe("mentalHealth", () => {
+    it("is eligible when PHQ-2 (PHQ1+PHQ2) >= 3", () => {
+      expect(
+        isEligible("mentalHealth", {
+          phq: {
+            PHQ1: "2 - More than half the days",
+            PHQ2: "1 - Several days",
+          },
+        }),
+      ).toBe(true);
+    });
+
+    it("is eligible when GAD-2 (GAD1+GAD2) >= 2", () => {
+      expect(
+        isEligible("mentalHealth", {
+          phq: { GAD1: "1 - Several days", GAD2: "1 - Several days" },
+        }),
+      ).toBe(true);
+    });
+
+    it("is eligible on any suicidal ideation (PHQ9 >= 1)", () => {
+      expect(
+        isEligible("mentalHealth", { phq: { PHQ9: "1 - Several days" } }),
+      ).toBe(true);
+    });
+
+    it("is eligible when counselling would benefit (PHQ11 = Yes)", () => {
+      expect(isEligible("mentalHealth", { phq: { PHQ11: "Yes" } })).toBe(true);
+    });
+
+    it("is not eligible when all scores are low and PHQ11 = No", () => {
+      expect(
+        isEligible("mentalHealth", {
+          phq: {
+            PHQ1: "1 - Several days",
+            PHQ2: "1 - Several days",
+            GAD1: "0 - Not at all",
+            GAD2: "1 - Several days",
+            PHQ9: "0 - Not at all",
+            PHQ11: "No",
+          },
+        }),
+      ).toBe(false);
+    });
+
+    it("is not eligible with no forms (default deny)", () => {
+      expect(isEligible("mentalHealth", {})).toBe(false);
+    });
+  });
 });

@@ -58,8 +58,18 @@ const eligibilityRules = {
     doctorconsult?.doctorSConsultQ6 === "Yes" ||
     geriot?.geriOtConsultQ4 === "Yes",
 
-  mentalHealth: ({ reg = {}, phq = {} }) =>
-    (phq?.PHQ10 >= 10 && reg?.registrationQ4 < 60) || phq?.PHQ11 === "Yes",
+  // Mental Health: PHQ-4 = PHQ-2 (depression: PHQ1+PHQ2) + GAD-2 (anxiety:
+  // GAD1+GAD2). Eligible if PHQ-2 >= 3, OR GAD-2 >= 2, OR any suicidal ideation
+  // (PHQ9 >= 1), OR the history-taker judged counselling would benefit (PHQ11).
+  // Answers are "0 - Not at all" ... "3 - Nearly everyday"; parseInt reads the
+  // leading digit as the score.
+  mentalHealth: ({ phq = {} }) => {
+    const score = (value) => parseInt(value, 10) || 0;
+    const phq2 = score(phq?.PHQ1) + score(phq?.PHQ2);
+    const gad2 = score(phq?.GAD1) + score(phq?.GAD2);
+    const suicidalIdeation = score(phq?.PHQ9) >= 1;
+    return phq2 >= 3 || gad2 >= 2 || suicidalIdeation || phq?.PHQ11 === "Yes";
+  },
 
   mammobus: ({ reg = {} }) => reg.registrationQ19 === "Yes",
 
