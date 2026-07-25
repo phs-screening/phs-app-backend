@@ -378,4 +378,79 @@ describe("stationEligibility", () => {
       expect(isEligible("mentalHealth", {})).toBe(false);
     });
   });
+
+  describe("vaccination", () => {
+    const CITIZEN = "Singapore Citizen 新加坡公民";
+    const PR = "Singapore Permanent Resident (PR) \n新加坡永久居民";
+
+    it("is eligible for an interested citizen due for the flu vaccine", () => {
+      expect(
+        isEligible("vaccination", {
+          reg: { registrationQ7: CITIZEN, registrationQ4: 40 },
+          hxvaccine: { VAXHX1: "No", VAXHX2: "Yes", VAXHX3: "Yes", VAXHX4: "Yes" },
+        }),
+      ).toBe(true);
+    });
+
+    it("treats 'Unsure' as not received", () => {
+      expect(
+        isEligible("vaccination", {
+          reg: { registrationQ7: CITIZEN, registrationQ4: 40 },
+          hxvaccine: { VAXHX1: "Unsure", VAXHX2: "Yes", VAXHX3: "Yes", VAXHX4: "Yes" },
+        }),
+      ).toBe(true);
+    });
+
+    it("counts pneumococcal only above 65, shingles only above 50", () => {
+      // age 70, only pneumococcal outstanding -> eligible
+      expect(
+        isEligible("vaccination", {
+          reg: { registrationQ7: CITIZEN, registrationQ4: 70 },
+          hxvaccine: { VAXHX1: "Yes", VAXHX2: "No", VAXHX3: "Yes", VAXHX4: "Yes" },
+        }),
+      ).toBe(true);
+      // age 60, only pneumococcal outstanding -> NOT eligible (pneumococcal is >65)
+      expect(
+        isEligible("vaccination", {
+          reg: { registrationQ7: CITIZEN, registrationQ4: 60 },
+          hxvaccine: { VAXHX1: "Yes", VAXHX2: "No", VAXHX3: "Yes", VAXHX4: "Yes" },
+        }),
+      ).toBe(false);
+      // age 55, only shingles outstanding -> eligible (shingles is >50)
+      expect(
+        isEligible("vaccination", {
+          reg: { registrationQ7: CITIZEN, registrationQ4: 55 },
+          hxvaccine: { VAXHX1: "Yes", VAXHX2: "Yes", VAXHX3: "No", VAXHX4: "Yes" },
+        }),
+      ).toBe(true);
+    });
+
+    it("is not eligible for a PR, or when not interested", () => {
+      expect(
+        isEligible("vaccination", {
+          reg: { registrationQ7: PR, registrationQ4: 40 },
+          hxvaccine: { VAXHX1: "No", VAXHX4: "Yes" },
+        }),
+      ).toBe(false);
+      expect(
+        isEligible("vaccination", {
+          reg: { registrationQ7: CITIZEN, registrationQ4: 40 },
+          hxvaccine: { VAXHX1: "No", VAXHX4: "No" },
+        }),
+      ).toBe(false);
+    });
+
+    it("is not eligible when all applicable vaccines are received", () => {
+      expect(
+        isEligible("vaccination", {
+          reg: { registrationQ7: CITIZEN, registrationQ4: 70 },
+          hxvaccine: { VAXHX1: "Yes", VAXHX2: "Yes", VAXHX3: "Yes", VAXHX4: "Yes" },
+        }),
+      ).toBe(false);
+    });
+
+    it("is not eligible with no forms (default deny)", () => {
+      expect(isEligible("vaccination", {})).toBe(false);
+    });
+  });
 });

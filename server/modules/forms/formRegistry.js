@@ -245,6 +245,12 @@ const formRegistry = {
     collection: "hxScoliosisForm",
     patientMarker: "hxScoliosisForm",
   },
+  hxVaccine: {
+    key: "hxVaccine",
+    title: "Vaccination Screening",
+    collection: "hxVaccineForm",
+    patientMarker: "hxVaccineForm",
+  },
   hxGynae: {
     key: "hxGynae",
     title: "History Gynae",

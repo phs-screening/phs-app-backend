@@ -86,7 +86,22 @@ const eligibilityRules = {
   audiometry: ({ reg = {}, hcsr = {} }) =>
     reg?.registrationQ4 >= 60 && hcsr?.hxHcsrQ5 === "No",
 
-  vaccination: ({ reg = {} }) => reg?.registrationQ4 >= 65,
+  // Vaccination: Singapore citizens who are interested, AND due for at least one
+  // vaccine — no influenza in the last year, OR (age > 65 and) no pneumococcal,
+  // OR (age > 50 and) no shingles. "Unsure" is treated as not received.
+  vaccination: ({ reg = {}, hxvaccine = {} }) => {
+    const isCitizen = reg?.registrationQ7?.startsWith("Singapore Citizen");
+    const interested = hxvaccine?.VAXHX4 === "Yes";
+    if (!isCitizen || !interested) {
+      return false;
+    }
+    const age = reg?.registrationQ4;
+    const notReceived = (value) => value === "No" || value === "Unsure";
+    const dueFlu = notReceived(hxvaccine?.VAXHX1);
+    const duePneumococcal = age > 65 && notReceived(hxvaccine?.VAXHX2);
+    const dueShingles = age > 50 && notReceived(hxvaccine?.VAXHX3);
+    return dueFlu || duePneumococcal || dueShingles;
+  },
 
   scoliosis: ({ hxscoliosis = {} }) =>
     ["SCOL1", "SCOL2", "SCOL3", "SCOL4", "SCOL5", "SCOL6"].some(
