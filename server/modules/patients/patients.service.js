@@ -34,6 +34,7 @@ const summaryReportFormKeys = {
   podiatry: "podiatry",
   mammobus: "mammobus",
   hpv: "hpv",
+  hxOsa: "hxOsa",
 };
 
 function getSummaryReportFormDefinitions() {

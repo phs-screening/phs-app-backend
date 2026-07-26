@@ -9,6 +9,31 @@ function createPatientsRepository(overrides = {}) {
 }
 
 describe("patients.service", () => {
+  it("includes the sleep apnea history form in summary report data", async () => {
+    const hxOsa = {
+      _id: 12,
+      OSA1: "Yes",
+      OSA2: "No",
+      OSA3: "Yes",
+    };
+    const patientsRepository = createPatientsRepository({
+      findSummaryReportForms: vi.fn().mockResolvedValue({ hxOsa }),
+    });
+    const service = createPatientsService({ patientsRepository });
+
+    const result = await service.getSummaryReportData(12);
+
+    const [formDefinitions] =
+      patientsRepository.findSummaryReportForms.mock.calls[0];
+    expect(formDefinitions.hxOsa).toEqual(
+      expect.objectContaining({
+        key: "hxOsa",
+        collection: "hxOsaForm",
+      }),
+    );
+    expect(result.body.data.hxOsa).toEqual(hxOsa);
+  });
+
   it("includes the scoliosis form in summary report data", async () => {
     const scoliosis = {
       _id: 12,
