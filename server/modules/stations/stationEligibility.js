@@ -3,7 +3,6 @@ const eligibilityRules = {
 
   lungFunction: ({ reg = {}, hxsocial = {} }) =>
     reg?.registrationQ21 === "Yes" &&
-    hxsocial?.SOCIAL16 === "Yes" &&
     (hxsocial?.SOCIAL10 === "Yes" || hxsocial?.SOCIAL11 === "Yes"),
 
   womenCancerEducation: ({ reg = {} }) => reg?.registrationQ5 === "Female",
@@ -73,7 +72,6 @@ const eligibilityRules = {
     hxm4m5?.hxM4M5Q1 === "Yes" &&
     (triage?.triageQ9 === "Yes" ||
       hcsr?.hxHcsrQ7 === "Yes" ||
-      hcsr?.hxHcsrQ6 === "Yes" ||
       pmhx?.PMHX7 === "Yes" ||
       phq?.PHQ10 >= 10 ||
       phq?.PHQ9 === "1 - Several days" ||
