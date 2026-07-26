@@ -15,6 +15,7 @@ describe("patients.service", () => {
       OSA1: "Yes",
       OSA2: "No",
       OSA3: "Yes",
+      OSA4: "Yes",
     };
     const patientsRepository = createPatientsRepository({
       findSummaryReportForms: vi.fn().mockResolvedValue({ hxOsa }),
