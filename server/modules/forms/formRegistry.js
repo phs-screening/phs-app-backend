@@ -245,6 +245,12 @@ const formRegistry = {
     collection: "hxScoliosisForm",
     patientMarker: "hxScoliosisForm",
   },
+  hxOsa: {
+    key: "hxOsa",
+    title: "History OSA",
+    collection: "hxOsaForm",
+    patientMarker: "hxOsaForm",
+  },
   hxGynae: {
     key: "hxGynae",
     title: "History Gynae",
