@@ -5,7 +5,7 @@ module.exports = {
   },
   overrides: [
     {
-      files: ['tests/unit/**/*.js'],
+      files: ['tests/unit/**/*.js', 'tests/integration/**/*.js'],
       globals: {
         afterAll: 'readonly',
         afterEach: 'readonly',
