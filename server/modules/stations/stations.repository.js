@@ -24,6 +24,13 @@ function createStationsRepository({ getDb }) {
       hxgynae,
       ophthal,
       hxscoliosis,
+      doctorconsult,
+      geriot,
+      geript,
+      dietitiansconsult,
+      mentalhealth,
+      hxvaccine,
+      audio,
     ] = await Promise.all([
       findFormByPatientId("hxNssForm", patientId),
       findFormByPatientId("hxSocialForm", patientId),
@@ -38,6 +45,13 @@ function createStationsRepository({ getDb }) {
       findFormByPatientId("gynaeForm", patientId),
       findFormByPatientId("ophthalForm", patientId),
       findFormByPatientId("hxScoliosisForm", patientId),
+      findFormByPatientId("doctorConsultForm", patientId),
+      findFormByPatientId("geriOtConsultForm", patientId),
+      findFormByPatientId("geriPtConsultForm", patientId),
+      findFormByPatientId("dietitiansConsultForm", patientId),
+      findFormByPatientId("mentalHealthForm", patientId),
+      findFormByPatientId("hxVaccineForm", patientId),
+      findFormByPatientId("audiometryForm", patientId),
     ]);
 
     return {
@@ -54,6 +68,13 @@ function createStationsRepository({ getDb }) {
       hxgynae: hxgynae || {},
       ophthal: ophthal || {},
       hxscoliosis: hxscoliosis || {},
+      doctorconsult: doctorconsult || {},
+      geriot: geriot || {},
+      geript: geript || {},
+      dietitiansconsult: dietitiansconsult || {},
+      mentalhealth: mentalhealth || {},
+      hxvaccine: hxvaccine || {},
+      audio: audio || {},
     };
   }
 

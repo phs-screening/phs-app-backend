@@ -1,3 +1,6 @@
 .env
 node_modules
 coverage
+
+# Local working handoff docs — not for commit
+ELIGIBILITY_HANDOFF.md
