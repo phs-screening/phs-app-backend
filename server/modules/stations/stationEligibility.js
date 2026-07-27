@@ -90,7 +90,7 @@ const eligibilityRules = {
   // vaccine. Each vaccine is a received?/interested? pair — PMHXVAX1+2 (influenza),
   // PMHXVAX3+4 (pneumococcal), PMHXVAX5+6 (shingles); "Unsure" counts as not
   // received. Influenza applies to everyone; pneumococcal only to age > 65;
-  // shingles only to age > 60.
+  // shingles only to age > 50.
   vaccination: ({ reg = {}, hxvaccine = {} }) => {
     const isCitizen = reg?.registrationQ7?.startsWith("Singapore Citizen");
     if (!isCitizen) {
@@ -103,7 +103,7 @@ const eligibilityRules = {
     const pneumococcal =
       age > 65 && dueAndInterested(hxvaccine?.PMHXVAX3, hxvaccine?.PMHXVAX4);
     const shingles =
-      age > 60 && dueAndInterested(hxvaccine?.PMHXVAX5, hxvaccine?.PMHXVAX6);
+      age > 50 && dueAndInterested(hxvaccine?.PMHXVAX5, hxvaccine?.PMHXVAX6);
     return flu || pneumococcal || shingles;
   },
 

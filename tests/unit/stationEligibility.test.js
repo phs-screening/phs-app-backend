@@ -471,18 +471,18 @@ describe("stationEligibility", () => {
       ).toBe(false);
     });
 
-    it("counts shingles only above 60", () => {
-      // age 62 -> eligible on shingles
+    it("counts shingles only above 50", () => {
+      // age 52 -> eligible on shingles
       expect(
         isEligible("vaccination", {
-          reg: { registrationQ7: CITIZEN, registrationQ4: 62 },
+          reg: { registrationQ7: CITIZEN, registrationQ4: 52 },
           hxvaccine: { PMHXVAX1: "Yes", PMHXVAX5: "No", PMHXVAX6: "Yes" },
         }),
       ).toBe(true);
-      // age 60 -> NOT eligible (must be > 60)
+      // age 50 -> NOT eligible (must be > 50)
       expect(
         isEligible("vaccination", {
-          reg: { registrationQ7: CITIZEN, registrationQ4: 60 },
+          reg: { registrationQ7: CITIZEN, registrationQ4: 50 },
           hxvaccine: { PMHXVAX1: "Yes", PMHXVAX5: "No", PMHXVAX6: "Yes" },
         }),
       ).toBe(false);
