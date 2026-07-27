@@ -304,6 +304,24 @@ describe("stationEligibility", () => {
       ).toBe(true);
     });
 
+    it("is eligible via a history-scrutiny flag (M4/M5 + hxHcsrQ7)", () => {
+      expect(
+        isEligible("doctorStation", {
+          hxm4m5: { hxM4M5Q1: "Yes" },
+          hcsr: { hxHcsrQ7: "Yes" },
+        }),
+      ).toBe(true);
+    });
+
+    it("no longer uses hxHcsrQ6 (removed in the 2026 form)", () => {
+      expect(
+        isEligible("doctorStation", {
+          hxm4m5: { hxM4M5Q1: "Yes" },
+          hcsr: { hxHcsrQ6: "Yes" },
+        }),
+      ).toBe(false);
+    });
+
     it("is not eligible when M4/M5 flags doctor but there is no concern", () => {
       expect(
         isEligible("doctorStation", { hxm4m5: { hxM4M5Q1: "Yes" } }),
