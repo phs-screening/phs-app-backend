@@ -86,27 +86,36 @@ const eligibilityRules = {
   audiometry: ({ reg = {}, hcsr = {} }) =>
     reg?.registrationQ4 >= 60 && hcsr?.hxHcsrQ5 === "No",
 
-  // Vaccination: Singapore citizens who are interested, AND due for at least one
-  // vaccine — no influenza in the last year, OR (age > 65 and) no pneumococcal,
-  // OR (age > 50 and) no shingles. "Unsure" is treated as not received.
+  // Vaccination: Singapore citizens who are due for AND interested in at least one
+  // vaccine. Each vaccine is a received?/interested? pair — PMHXVAX1+2 (influenza),
+  // PMHXVAX3+4 (pneumococcal), PMHXVAX5+6 (shingles); "Unsure" counts as not
+  // received. Influenza applies to everyone; pneumococcal only to age > 65;
+  // shingles only to age > 60.
   vaccination: ({ reg = {}, hxvaccine = {} }) => {
     const isCitizen = reg?.registrationQ7?.startsWith("Singapore Citizen");
-    const interested = hxvaccine?.VAXHX4 === "Yes";
-    if (!isCitizen || !interested) {
+    if (!isCitizen) {
       return false;
     }
     const age = reg?.registrationQ4;
-    const notReceived = (value) => value === "No" || value === "Unsure";
-    const dueFlu = notReceived(hxvaccine?.VAXHX1);
-    const duePneumococcal = age > 65 && notReceived(hxvaccine?.VAXHX2);
-    const dueShingles = age > 50 && notReceived(hxvaccine?.VAXHX3);
-    return dueFlu || duePneumococcal || dueShingles;
+    const dueAndInterested = (received, interested) =>
+      (received === "No" || received === "Unsure") && interested === "Yes";
+    const flu = dueAndInterested(hxvaccine?.PMHXVAX1, hxvaccine?.PMHXVAX2);
+    const pneumococcal =
+      age > 65 && dueAndInterested(hxvaccine?.PMHXVAX3, hxvaccine?.PMHXVAX4);
+    const shingles =
+      age > 60 && dueAndInterested(hxvaccine?.PMHXVAX5, hxvaccine?.PMHXVAX6);
+    return flu || pneumococcal || shingles;
   },
 
   scoliosis: ({ hxscoliosis = {} }) =>
-    ["SCOL1", "SCOL2", "SCOL3", "SCOL4", "SCOL5", "SCOL6"].some(
-      (question) => hxscoliosis?.[question] === "Yes",
-    ),
+    [
+      "Scoliosis1",
+      "Scoliosis2",
+      "Scoliosis3",
+      "Scoliosis4",
+      "Scoliosis5",
+      "Scoliosis6",
+    ].some((question) => hxscoliosis?.[question] === "Yes"),
 
   // Doctor's Station: a History-Taking referral (the M4/M5 flag plus a specific
   // concern from triage / history scrutiny / PMHx / PHQ), OR a referral logged at
