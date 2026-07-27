@@ -9,6 +9,7 @@ const summaryReportFormKeys = {
   cancer: "hxCancer",
   vision: "geriVision",
   fit: "fit",
+  scoliosis: "scoliosis",
   wce: "wce",
   phlebotomy: "phlebotomy",
   geriPtConsult: "geriPtConsult",
@@ -33,6 +34,7 @@ const summaryReportFormKeys = {
   podiatry: "podiatry",
   mammobus: "mammobus",
   hpv: "hpv",
+  hxOsa: "hxOsa",
 };
 
 function getSummaryReportFormDefinitions() {

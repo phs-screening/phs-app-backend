@@ -1,13 +1,13 @@
 const { MongoClient } = require('mongodb');
 require('dotenv').config();
 
-const uri = process.env.MONGODB_URI;
-const client = new MongoClient(uri);
-
+let client;
 let db;
 
 async function getDb() {
   if (!db) {
+    const uri = process.env.MONGODB_URI;
+    client = client || new MongoClient(uri);
     await client.connect();
     db = client.db(process.env.DB_NAME);
   }

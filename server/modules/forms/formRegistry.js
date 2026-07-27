@@ -251,6 +251,12 @@ const formRegistry = {
     collection: "hxVaccineForm",
     patientMarker: "hxVaccineForm",
   },
+  hxOsa: {
+    key: "hxOsa",
+    title: "History OSA",
+    collection: "hxOsaForm",
+    patientMarker: "hxOsaForm",
+  },
   hxGynae: {
     key: "hxGynae",
     title: "History Gynae",

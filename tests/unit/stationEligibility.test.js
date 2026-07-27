@@ -510,4 +510,22 @@ describe("stationEligibility", () => {
       expect(isEligible("vaccination", {})).toBe(false);
     });
   });
+
+  it("does not use removed HCSR Q6 for Doctor-station eligibility", () => {
+    expect(
+      isEligible("doctorStation", {
+        hxm4m5: { hxM4M5Q1: "Yes" },
+        hcsr: { hxHcsrQ6: "Yes" },
+      }),
+    ).toBe(false);
+  });
+
+  it("continues to use HCSR Q7 for Doctor-station eligibility", () => {
+    expect(
+      isEligible("doctorStation", {
+        hxm4m5: { hxM4M5Q1: "Yes" },
+        hcsr: { hxHcsrQ7: "Yes" },
+      }),
+    ).toBe(true);
+  });
 });

@@ -12,7 +12,7 @@ const createProfilesRoutes = require('./modules/profiles/profiles.routes');
 const createQueuesRoutes = require('./modules/queues/queues.routes');
 const createStationsRoutes = require('./modules/stations/stations.routes');
 
-function createApp() {
+function createApp(overrides = {}) {
   const app = express();
 
   const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
@@ -32,7 +32,13 @@ function createApp() {
   }));
   app.use(express.json());
 
-  const deps = { getDb, authenticateToken, requireAdmin, JWT_SECRET };
+  const deps = {
+    getDb,
+    authenticateToken,
+    requireAdmin,
+    JWT_SECRET,
+    ...overrides,
+  };
 
   app.use('/api', createPrintQueueRoutes(deps));
   app.use('/api', createEventDashboardRoutes(deps));
