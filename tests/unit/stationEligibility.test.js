@@ -342,10 +342,10 @@ describe("stationEligibility", () => {
       ).toBe(true);
     });
 
-    it("is eligible on an Ophthalmology referral (OphthalQ9)", () => {
+    it("is eligible on an Ophthalmology referral (OphthalQ11)", () => {
       expect(
         isEligible("doctorStation", {
-          ophthal: { OphthalQ9: ["Referred to Doctor's Station"] },
+          ophthal: { OphthalQ11: ["Referred to Doctor's Station"] },
         }),
       ).toBe(true);
     });
