@@ -29,6 +29,7 @@ function createStationsRepository({ getDb }) {
       dietitiansconsult,
       mentalhealth,
       hxvaccine,
+      audio,
     ] = await Promise.all([
       findFormByPatientId("hxNssForm", patientId),
       findFormByPatientId("hxSocialForm", patientId),
@@ -48,6 +49,7 @@ function createStationsRepository({ getDb }) {
       findFormByPatientId("dietitiansConsultForm", patientId),
       findFormByPatientId("mentalHealthForm", patientId),
       findFormByPatientId("hxVaccineForm", patientId),
+      findFormByPatientId("audiometryForm", patientId),
     ]);
 
     return {
@@ -69,6 +71,7 @@ function createStationsRepository({ getDb }) {
       dietitiansconsult: dietitiansconsult || {},
       mentalhealth: mentalhealth || {},
       hxvaccine: hxvaccine || {},
+      audio: audio || {},
     };
   }
 

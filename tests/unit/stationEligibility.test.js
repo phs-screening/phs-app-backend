@@ -342,6 +342,20 @@ describe("stationEligibility", () => {
       ).toBe(true);
     });
 
+    it("is eligible on an Ophthalmology referral (OphthalQ9)", () => {
+      expect(
+        isEligible("doctorStation", {
+          ophthal: { OphthalQ9: ["Referred to Doctor's Station"] },
+        }),
+      ).toBe(true);
+    });
+
+    it("is eligible on an Audiometry referral (AudiometryQ11)", () => {
+      expect(
+        isEligible("doctorStation", { audio: { AudiometryQ11: "Yes" } }),
+      ).toBe(true);
+    });
+
     it("is not eligible with no forms (default deny)", () => {
       expect(isEligible("doctorStation", {})).toBe(false);
     });

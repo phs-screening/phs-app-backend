@@ -23,6 +23,7 @@ const EXPECTED_KEY_TO_COLLECTION = {
   dietitiansconsult: "dietitiansConsultForm",
   mentalhealth: "mentalHealthForm",
   hxvaccine: "hxVaccineForm",
+  audio: "audiometryForm",
 };
 
 describe("stations.repository findEligibilityForms wiring", () => {
