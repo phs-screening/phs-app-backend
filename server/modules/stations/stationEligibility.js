@@ -120,8 +120,9 @@ const eligibilityRules = {
   // Doctor's Station: a History-Taking referral (the M4/M5 flag plus a specific
   // concern from triage / history scrutiny / PMHx / PHQ), OR a referral logged at
   // the Dietician (dietitiansConsultQ9), Mental Health (SAMH3), Ophthalmology
-  // (OphthalQ9) or Audiometry (AudiometryQ11) station. Those station referrals
-  // are independent — they don't require the M4/M5 gate.
+  // (OphthalQ9), Audiometry (AudiometryQ11), Physiotherapy (geriPtConsultQ2) or
+  // Occupational Therapy (geriOtConsultQ2) station. Those station referrals are
+  // independent — they don't require the M4/M5 gate.
   // Note: hxHcsrQ6 (systems-review scrutiny) is removed in the 2026 form; its
   // reworded hxHcsrQ7 ("HISTORY requires scrutiny") now covers that referral.
   doctorStation: ({
@@ -134,6 +135,8 @@ const eligibilityRules = {
     mentalhealth = {},
     ophthal = {},
     audio = {},
+    geript = {},
+    geriot = {},
   }) =>
     (hxm4m5?.hxM4M5Q1 === "Yes" &&
       (triage?.triageQ9 === "Yes" ||
@@ -145,7 +148,9 @@ const eligibilityRules = {
     dietitiansconsult?.dietitiansConsultQ9 === "Yes" ||
     mentalhealth?.SAMH3 === "Yes" ||
     ophthal?.OphthalQ9?.includes("Referred to Doctor's Station") ||
-    audio?.AudiometryQ11 === "Yes",
+    audio?.AudiometryQ11 === "Yes" ||
+    geript?.geriPtConsultQ2 === "Yes" ||
+    geriot?.geriOtConsultQ2 === "Yes",
 
   // LTFU (long-term follow-up): age >= 60 with at least one of hypertension,
   // hyperlipidemia, diabetes, or heart disease (from PMHX5).

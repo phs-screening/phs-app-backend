@@ -20,6 +20,7 @@ const EXPECTED_KEY_TO_COLLECTION = {
   hxscoliosis: "hxScoliosisForm",
   doctorconsult: "doctorConsultForm",
   geriot: "geriOtConsultForm",
+  geript: "geriPtConsultForm",
   dietitiansconsult: "dietitiansConsultForm",
   mentalhealth: "mentalHealthForm",
   hxvaccine: "hxVaccineForm",

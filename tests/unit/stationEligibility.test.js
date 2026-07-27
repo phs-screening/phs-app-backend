@@ -356,6 +356,18 @@ describe("stationEligibility", () => {
       ).toBe(true);
     });
 
+    it("is eligible on a Physiotherapy referral (geriPtConsultQ2)", () => {
+      expect(
+        isEligible("doctorStation", { geript: { geriPtConsultQ2: "Yes" } }),
+      ).toBe(true);
+    });
+
+    it("is eligible on an Occupational Therapy referral (geriOtConsultQ2)", () => {
+      expect(
+        isEligible("doctorStation", { geriot: { geriOtConsultQ2: "Yes" } }),
+      ).toBe(true);
+    });
+
     it("is not eligible with no forms (default deny)", () => {
       expect(isEligible("doctorStation", {})).toBe(false);
     });
