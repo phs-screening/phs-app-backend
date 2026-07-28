@@ -431,7 +431,7 @@ describe("stationEligibility", () => {
       expect(
         isEligible("vaccination", {
           reg: { registrationQ7: CITIZEN, registrationQ4: 40 },
-          hxvaccine: { PMHXVAX1: "No", PMHXVAX2: "Yes" },
+          pmhx: { PMHXVAX1: "No", PMHXVAX2: "Yes" },
         }),
       ).toBe(true);
     });
@@ -440,7 +440,7 @@ describe("stationEligibility", () => {
       expect(
         isEligible("vaccination", {
           reg: { registrationQ7: CITIZEN, registrationQ4: 40 },
-          hxvaccine: { PMHXVAX1: "Unsure", PMHXVAX2: "Yes" },
+          pmhx: { PMHXVAX1: "Unsure", PMHXVAX2: "Yes" },
         }),
       ).toBe(true);
     });
@@ -449,7 +449,7 @@ describe("stationEligibility", () => {
       expect(
         isEligible("vaccination", {
           reg: { registrationQ7: CITIZEN, registrationQ4: 40 },
-          hxvaccine: { PMHXVAX1: "No", PMHXVAX2: "No" },
+          pmhx: { PMHXVAX1: "No", PMHXVAX2: "No" },
         }),
       ).toBe(false);
     });
@@ -459,14 +459,14 @@ describe("stationEligibility", () => {
       expect(
         isEligible("vaccination", {
           reg: { registrationQ7: CITIZEN, registrationQ4: 70 },
-          hxvaccine: { PMHXVAX1: "Yes", PMHXVAX3: "No", PMHXVAX4: "Yes" },
+          pmhx: { PMHXVAX1: "Yes", PMHXVAX3: "No", PMHXVAX4: "Yes" },
         }),
       ).toBe(true);
       // age 65 -> NOT eligible (must be > 65)
       expect(
         isEligible("vaccination", {
           reg: { registrationQ7: CITIZEN, registrationQ4: 65 },
-          hxvaccine: { PMHXVAX1: "Yes", PMHXVAX3: "No", PMHXVAX4: "Yes" },
+          pmhx: { PMHXVAX1: "Yes", PMHXVAX3: "No", PMHXVAX4: "Yes" },
         }),
       ).toBe(false);
     });
@@ -476,14 +476,14 @@ describe("stationEligibility", () => {
       expect(
         isEligible("vaccination", {
           reg: { registrationQ7: CITIZEN, registrationQ4: 52 },
-          hxvaccine: { PMHXVAX1: "Yes", PMHXVAX5: "No", PMHXVAX6: "Yes" },
+          pmhx: { PMHXVAX1: "Yes", PMHXVAX5: "No", PMHXVAX6: "Yes" },
         }),
       ).toBe(true);
       // age 50 -> NOT eligible (must be > 50)
       expect(
         isEligible("vaccination", {
           reg: { registrationQ7: CITIZEN, registrationQ4: 50 },
-          hxvaccine: { PMHXVAX1: "Yes", PMHXVAX5: "No", PMHXVAX6: "Yes" },
+          pmhx: { PMHXVAX1: "Yes", PMHXVAX5: "No", PMHXVAX6: "Yes" },
         }),
       ).toBe(false);
     });
@@ -492,7 +492,7 @@ describe("stationEligibility", () => {
       expect(
         isEligible("vaccination", {
           reg: { registrationQ7: PR, registrationQ4: 40 },
-          hxvaccine: { PMHXVAX1: "No", PMHXVAX2: "Yes" },
+          pmhx: { PMHXVAX1: "No", PMHXVAX2: "Yes" },
         }),
       ).toBe(false);
     });
@@ -501,7 +501,7 @@ describe("stationEligibility", () => {
       expect(
         isEligible("vaccination", {
           reg: { registrationQ7: CITIZEN, registrationQ4: 70 },
-          hxvaccine: { PMHXVAX1: "Yes", PMHXVAX3: "Yes", PMHXVAX5: "Yes" },
+          pmhx: { PMHXVAX1: "Yes", PMHXVAX3: "Yes", PMHXVAX5: "Yes" },
         }),
       ).toBe(false);
     });
