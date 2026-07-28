@@ -23,7 +23,6 @@ const EXPECTED_KEY_TO_COLLECTION = {
   geript: "geriPtConsultForm",
   dietitiansconsult: "dietitiansConsultForm",
   mentalhealth: "mentalHealthForm",
-  hxvaccine: "hxVaccineForm",
   audio: "audiometryForm",
 };
 
