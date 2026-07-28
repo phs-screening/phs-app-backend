@@ -123,7 +123,7 @@ describe("forms.service", () => {
         { is_admin: false },
       );
 
-      expect(result.status).toBe(403);
+      expect(result.status).toBe(409);
       expect(result.body.result).toBe(false);
       expect(formsRepository.updateFormDocument).not.toHaveBeenCalled();
       expect(onFormSubmitted).not.toHaveBeenCalled();

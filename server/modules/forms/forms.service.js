@@ -93,7 +93,7 @@ function createFormsService({ formsRepository, onFormSubmitted, onFormAReadyChec
 
     const errorMsg =
       "This form has already been submitted. If you need to make any changes, please contact the admin.";
-    return { status: 403, body: { result: false, error: errorMsg } };
+    return { status: 409, body: { result: false, error: errorMsg } };
   }
 
   async function submitFormByKey(formKey, patientId, payload, user) {
