@@ -4,3 +4,6 @@ coverage
 performance/results/*.json
 performance/data/*
 !performance/data/patient-ids.example.txt
+
+# Local working handoff docs - not for commit
+ELIGIBILITY_HANDOFF.md

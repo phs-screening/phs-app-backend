@@ -19,7 +19,10 @@ describe("station eligibility projection", () => {
       extractEligibilityInput("registrationForm", {
         registrationQ4: 68,
         registrationQ5: "Female",
+        registrationQ7: "Singapore Citizen",
         registrationQ11: "No",
+        registrationQ12: "CHAS Blue",
+        registrationQ16: "No",
         registrationQ19: "Yes",
         registrationQ21: "No",
         registrationQ2: "must not be copied",
@@ -29,9 +32,11 @@ describe("station eligibility projection", () => {
       data: {
         registrationQ4: 68,
         registrationQ5: "Female",
+        registrationQ7: "Singapore Citizen",
         registrationQ11: "No",
+        registrationQ12: "CHAS Blue",
+        registrationQ16: "No",
         registrationQ19: "Yes",
-        registrationQ21: "No",
       },
     });
     expect(extractEligibilityInput("summaryForm", { secret: true })).toBeNull();

@@ -1,10 +1,13 @@
 const createFormsService = require("../../server/modules/forms/forms.service");
+const {
+  STATION_PROJECTION_VERSION,
+} = require("../../server/modules/stations/stationProjection");
 
 function createFormsRepository(overrides = {}) {
   const patient = {
     queueNo: 22,
     stationEligibilityInputs: {},
-    stationProjectionVersion: 1,
+    stationProjectionVersion: STATION_PROJECTION_VERSION,
     stationProjectionRevision: 0,
   };
   return {
@@ -148,7 +151,7 @@ describe("forms.service", () => {
               registrationQ5: "Female",
               registrationQ11: "No",
             },
-            stationProjectionVersion: 1,
+            stationProjectionVersion: STATION_PROJECTION_VERSION,
           }),
         }),
       );
@@ -197,7 +200,7 @@ describe("forms.service", () => {
         { is_admin: false },
       );
 
-      expect(result.status).toBe(403);
+      expect(result.status).toBe(409);
       expect(result.body.result).toBe(false);
       expect(formsRepository.updateFormDocument).not.toHaveBeenCalled();
       expect(onFormSubmitted).not.toHaveBeenCalled();
@@ -210,7 +213,7 @@ describe("forms.service", () => {
         customForm: 22,
         stationProjectionNeedsRepair: true,
         stationEligibilityInputs: {},
-        stationProjectionVersion: 1,
+        stationProjectionVersion: STATION_PROJECTION_VERSION,
         stationProjectionRevision: 3,
       };
       const repairedPatient = {
@@ -234,7 +237,7 @@ describe("forms.service", () => {
           { answer: "must not overwrite" },
           { is_admin: false, email: "volunteer@example.com" },
         ),
-      ).resolves.toMatchObject({ status: 403, body: { result: false } });
+      ).resolves.toMatchObject({ status: 409, body: { result: false } });
 
       expect(preparePatientProjection).toHaveBeenCalledWith(repairPatient);
       expect(formsRepository.updateFormDocument).not.toHaveBeenCalled();
@@ -344,7 +347,7 @@ describe("forms.service", () => {
           },
           { is_admin: false },
         ),
-      ).resolves.toMatchObject({ status: 403, body: { result: false } });
+      ).resolves.toMatchObject({ status: 409, body: { result: false } });
       expect(formsRepository.updatePatientAfterForm).toHaveBeenCalledWith(
         22,
         expect.objectContaining({
