@@ -160,6 +160,60 @@ describe("cached station summaries", () => {
     expect(JSON.stringify(pipeline)).toContain("7");
   });
 
+  it("hydrates an unversioned patient only while its revision is still absent", async () => {
+    const patients = { findOneAndUpdate: vi.fn().mockResolvedValue(null) };
+    const repository = createStationsRepository({
+      getDb: vi.fn().mockResolvedValue({
+        collection: vi.fn((name) => (name === "patients" ? patients : {})),
+      }),
+    });
+
+    await repository.persistPatientProjection(22, { reg: { registrationQ4: 68 } });
+
+    expect(patients.findOneAndUpdate).toHaveBeenCalledWith(
+      {
+        queueNo: 22,
+        $or: [
+          { stationProjectionRevision: { $exists: false } },
+          { stationProjectionRevision: null },
+        ],
+      },
+      expect.any(Object),
+      { returnDocument: "after" },
+    );
+  });
+
+  it("uses a concurrent projection instead of overwriting legacy hydration", async () => {
+    const legacyPatient = { queueNo: 22, registrationForm: 22 };
+    const concurrentPatient = {
+      ...legacyPatient,
+      stationEligibilityInputs: { reg: { registrationQ4: 72 } },
+      stationProjectionVersion: STATION_PROJECTION_VERSION,
+      stationProjectionRevision: 1,
+    };
+    const repository = {
+      findPatientByQueueNo: vi
+        .fn()
+        .mockResolvedValueOnce(legacyPatient)
+        .mockResolvedValueOnce(concurrentPatient),
+      findEligibilityForms: vi.fn().mockResolvedValue({ reg: { registrationQ4: 68 } }),
+      persistPatientProjection: vi.fn().mockResolvedValue(null),
+      updateStationCounts: vi.fn(),
+    };
+    const service = createStationsService({ stationsRepository: repository });
+
+    const result = await service.getPatientStationSummary(22);
+
+    expect(result.status).toBe(200);
+    expect(repository.persistPatientProjection).toHaveBeenCalledWith(
+      22,
+      expect.objectContaining({ reg: { registrationQ4: 68 } }),
+      undefined,
+    );
+    expect(repository.findEligibilityForms).toHaveBeenCalledOnce();
+    expect(result.body.data.patient.queueNo).toBe(22);
+  });
+
   it("hydrates a missing projection once", async () => {
     const legacyPatient = { queueNo: 22, registrationForm: 22 };
     const hydratedPatient = {

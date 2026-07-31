@@ -92,6 +92,17 @@ function createFormsService({
     return updatedPatient;
   }
 
+  async function repairPatientDerivedState(patient) {
+    await recalculateStationCounts(patient);
+    await maybeEnqueueFormA(patient);
+  }
+
+  function duplicateSubmissionResult() {
+    const errorMsg =
+      "This form has already been submitted. If you need to make any changes, please contact the admin.";
+    return { status: 403, body: { result: false, error: errorMsg } };
+  }
+
   async function submitForm(formCollection, patientId, payload, user) {
     if (Number.isNaN(patientId)) {
       return {
@@ -108,6 +119,7 @@ function createFormsService({
       };
     }
 
+    const projectionNeededRepair = Boolean(patient.stationProjectionNeedsRepair);
     patient = await ensureProjection(patient);
     const payloadWithDerivations = applyFormDerivations(formCollection, payload);
 
@@ -119,9 +131,20 @@ function createFormsService({
           payloadWithDerivations,
         );
       } catch (error) {
-        // A retry after a successful canonical insert may hit a duplicate key.
-        // Continue to finalization so the retry remains safe and idempotent.
         if (error?.code !== 11000) throw error;
+
+        const canonicalForm = await formsRepository.findFormDocument(
+          formCollection,
+          patientId,
+        );
+        if (!canonicalForm) {
+          throw new Error(
+            `Duplicate ${formCollection} exists for patient ${patientId}, but the canonical form could not be loaded`,
+          );
+        }
+
+        await finalizeFormSave(formCollection, patientId, canonicalForm);
+        return duplicateSubmissionResult();
       }
 
       await finalizeFormSave(
@@ -133,7 +156,7 @@ function createFormsService({
       return { status: 200, body: { result: true } };
     }
 
-    if (user.is_admin || patient.stationProjectionNeedsRepair) {
+    if (user.is_admin) {
       const updatedPayload = {
         ...payloadWithDerivations,
         lastEdited: new Date(),
@@ -150,9 +173,11 @@ function createFormsService({
       return { status: 200, body: { result: true } };
     }
 
-    const errorMsg =
-      "This form has already been submitted. If you need to make any changes, please contact the admin.";
-    return { status: 403, body: { result: false, error: errorMsg } };
+    if (projectionNeededRepair) {
+      await repairPatientDerivedState(patient);
+    }
+
+    return duplicateSubmissionResult();
   }
 
   async function submitFormByKey(formKey, patientId, payload, user) {

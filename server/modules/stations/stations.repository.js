@@ -67,17 +67,26 @@ function createStationsRepository({ getDb }) {
     const filter = { queueNo };
     if (Number.isFinite(expectedProjectionRevision)) {
       filter.stationProjectionRevision = expectedProjectionRevision;
+    } else {
+      filter.$or = [
+        { stationProjectionRevision: { $exists: false } },
+        { stationProjectionRevision: null },
+      ];
     }
     const result = await db.collection("patients").findOneAndUpdate(
       filter,
-      {
-        $set: {
-          stationEligibilityInputs: eligibilityInputs,
-          stationProjectionVersion: STATION_PROJECTION_VERSION,
-          stationProjectionNeedsRepair: false,
+      [
+        {
+          $set: {
+            stationEligibilityInputs: eligibilityInputs,
+            stationProjectionVersion: STATION_PROJECTION_VERSION,
+            stationProjectionNeedsRepair: false,
+            stationProjectionRevision: {
+              $add: [{ $ifNull: ["$stationProjectionRevision", 0] }, 1],
+            },
+          },
         },
-        $inc: { stationProjectionRevision: 1 },
-      },
+      ],
       { returnDocument: "after" },
     );
     return result?.value || result;

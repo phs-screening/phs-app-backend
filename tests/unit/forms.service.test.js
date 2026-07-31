@@ -27,6 +27,7 @@ function createService(options = {}) {
   const formsRepository = options.formsRepository || createFormsRepository();
   const onFormSubmitted = options.onFormSubmitted || vi.fn().mockResolvedValue();
   const onFormAReadyCheck = options.onFormAReadyCheck || vi.fn().mockResolvedValue();
+  const preparePatientProjection = options.preparePatientProjection;
 
   return {
     formsRepository,
@@ -36,6 +37,7 @@ function createService(options = {}) {
       formsRepository,
       onFormSubmitted,
       onFormAReadyCheck,
+      preparePatientProjection,
     }),
   };
 }
@@ -202,6 +204,45 @@ describe("forms.service", () => {
       expect(onFormAReadyCheck).not.toHaveBeenCalled();
     });
 
+    it("repairs derived state without allowing a non-admin to update the form", async () => {
+      const repairPatient = {
+        queueNo: 22,
+        customForm: 22,
+        stationProjectionNeedsRepair: true,
+        stationEligibilityInputs: {},
+        stationProjectionVersion: 1,
+        stationProjectionRevision: 3,
+      };
+      const repairedPatient = {
+        ...repairPatient,
+        stationProjectionNeedsRepair: false,
+        stationProjectionRevision: 4,
+      };
+      const formsRepository = createFormsRepository({
+        findPatientByQueueNo: vi.fn().mockResolvedValue(repairPatient),
+      });
+      const preparePatientProjection = vi.fn().mockResolvedValue(repairedPatient);
+      const { service, onFormSubmitted, onFormAReadyCheck } = createService({
+        formsRepository,
+        preparePatientProjection,
+      });
+
+      await expect(
+        service.submitForm(
+          "customForm",
+          22,
+          { answer: "must not overwrite" },
+          { is_admin: false, email: "volunteer@example.com" },
+        ),
+      ).resolves.toMatchObject({ status: 403, body: { result: false } });
+
+      expect(preparePatientProjection).toHaveBeenCalledWith(repairPatient);
+      expect(formsRepository.updateFormDocument).not.toHaveBeenCalled();
+      expect(formsRepository.updatePatientAfterForm).not.toHaveBeenCalled();
+      expect(onFormSubmitted).toHaveBeenCalledWith(repairedPatient);
+      expect(onFormAReadyCheck).toHaveBeenCalledWith(repairedPatient);
+    });
+
     it("allows admins to update submitted forms and records edit metadata", async () => {
       const formsRepository = createFormsRepository({
         findPatientByQueueNo: vi.fn().mockResolvedValue({
@@ -277,17 +318,67 @@ describe("forms.service", () => {
       expect(onFormSubmitted).toHaveBeenCalledTimes(2);
     });
 
-    it("re-runs finalization after a duplicate canonical insert", async () => {
+    it("finalizes a duplicate canonical insert from stored data and rejects the loser", async () => {
+      const canonicalForm = {
+        _id: 22,
+        registrationQ2: "WINNER",
+        registrationQ4: 68,
+        registrationQ5: "Female",
+        registrationQ11: "No",
+      };
       const formsRepository = createFormsRepository({
         insertFormDocument: vi.fn().mockRejectedValue(Object.assign(new Error("duplicate"), { code: 11000 })),
+        findFormDocument: vi.fn().mockResolvedValue(canonicalForm),
       });
       const { service, onFormSubmitted } = createService({ formsRepository });
 
       await expect(
-        service.submitForm("customForm", 22, { answer: "yes" }, { is_admin: false }),
-      ).resolves.toEqual({ status: 200, body: { result: true } });
-      expect(formsRepository.updatePatientAfterForm).toHaveBeenCalled();
+        service.submitForm(
+          "registrationForm",
+          22,
+          {
+            registrationQ2: "LOSER",
+            registrationQ4: 40,
+            registrationQ5: "Male",
+            registrationQ11: "Yes",
+          },
+          { is_admin: false },
+        ),
+      ).resolves.toMatchObject({ status: 403, body: { result: false } });
+      expect(formsRepository.updatePatientAfterForm).toHaveBeenCalledWith(
+        22,
+        expect.objectContaining({
+          $set: expect.objectContaining({
+            initials: "WINNER",
+            age: 68,
+            "stationEligibilityInputs.reg": {
+              registrationQ4: 68,
+              registrationQ5: "Female",
+              registrationQ11: "No",
+            },
+          }),
+        }),
+      );
       expect(onFormSubmitted).toHaveBeenCalled();
+    });
+
+    it("fails safely when a duplicate insert has no readable canonical form", async () => {
+      const formsRepository = createFormsRepository({
+        insertFormDocument: vi.fn().mockRejectedValue(
+          Object.assign(new Error("duplicate"), { code: 11000 }),
+        ),
+        findFormDocument: vi.fn().mockResolvedValue(null),
+      });
+      const { service, onFormSubmitted, onFormAReadyCheck } = createService({
+        formsRepository,
+      });
+
+      await expect(
+        service.submitForm("customForm", 22, { answer: "loser" }, { is_admin: false }),
+      ).rejects.toThrow("canonical form could not be loaded");
+      expect(formsRepository.updatePatientAfterForm).not.toHaveBeenCalled();
+      expect(onFormSubmitted).not.toHaveBeenCalled();
+      expect(onFormAReadyCheck).not.toHaveBeenCalled();
     });
 
     it("still succeeds when Form A readiness checking fails", async () => {
