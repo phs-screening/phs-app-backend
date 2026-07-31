@@ -1,3 +1,6 @@
 .env
 node_modules
 coverage
+performance/results/*.json
+performance/data/*
+!performance/data/patient-ids.example.txt
