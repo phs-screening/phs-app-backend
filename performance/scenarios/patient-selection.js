@@ -23,6 +23,8 @@ import { performanceSummary } from "../lib/report.js";
 const patientIds = loadPatientIds();
 const includeRecalculation =
   String(__ENV.SELECT_INCLUDE_RECALC || "true").toLowerCase() !== "false";
+const useCombinedSummary =
+  String(__ENV.SELECT_COMBINED_SUMMARY || "false").toLowerCase() === "true";
 
 export const options = buildOptions({ flow: "patient-selection" });
 
@@ -31,24 +33,26 @@ function selectPatient(token, patientId, recordMetrics) {
   let requestCount = 0;
   let failed = false;
 
-  const patientResponse = http.get(
-    `${BASE_URL}/patients/${encodeURIComponent(patientId)}`,
-    authParams(token, "patient_lookup"),
-  );
-  requestCount += 1;
+  if (!useCombinedSummary) {
+    const patientResponse = http.get(
+      `${BASE_URL}/patients/${encodeURIComponent(patientId)}`,
+      authParams(token, "patient_lookup"),
+    );
+    requestCount += 1;
 
-  const patientOk = check(patientResponse, {
-    "patient lookup returned 200": (response) => response.status === 200,
-    "patient lookup returned requested patient": (response) => {
-      try {
-        const body = response.json();
-        return body?.result === true && body?.data?.queueNo === patientId;
-      } catch {
-        return false;
-      }
-    },
-  });
-  failed ||= !patientOk;
+    const patientOk = check(patientResponse, {
+      "patient lookup returned 200": (response) => response.status === 200,
+      "patient lookup returned requested patient": (response) => {
+        try {
+          const body = response.json();
+          return body?.result === true && body?.data?.queueNo === patientId;
+        } catch {
+          return false;
+        }
+      },
+    });
+    failed ||= !patientOk;
+  }
 
   if (includeRecalculation) {
     const recalcResponse = http.post(
@@ -89,6 +93,7 @@ function selectPatient(token, patientId, recordMetrics) {
         const body = response.json();
         return (
           body?.result === true &&
+          (!useCombinedSummary || body?.data?.patient?.queueNo === patientId) &&
           Array.isArray(body?.data?.stations) &&
           body.data.status != null
         );

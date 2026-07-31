@@ -75,6 +75,10 @@ async function setup() {
         { name: "patientId_1" },
       );
       await db.collection(collection).createIndex(
+        { patientKey: 1 },
+        { unique: true, sparse: true, name: "unique_patientKey" },
+      );
+      await db.collection(collection).createIndex(
         { printed: 1, patientId: 1, createdAt: -1, _id: -1 },
         { name: "printed_patientId_createdAt_id" },
       );

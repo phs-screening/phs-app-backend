@@ -9,6 +9,24 @@ function createPatientsRepository(overrides = {}) {
 }
 
 describe("patients.service", () => {
+  it("does not expose internal station projection fields", async () => {
+    const patientsRepository = createPatientsRepository({
+      findPatientByQueueNo: vi.fn().mockResolvedValue({
+        queueNo: 12,
+        initials: "ABC",
+        stationEligibilityInputs: { reg: { registrationQ4: 68 } },
+        stationProjectionVersion: 1,
+        stationProjectionRevision: 2,
+      }),
+    });
+    const service = createPatientsService({ patientsRepository });
+
+    await expect(service.getPatientRecord(12)).resolves.toEqual({
+      status: 200,
+      body: { result: true, data: { queueNo: 12, initials: "ABC" } },
+    });
+  });
+
   it("includes the sleep apnea history form in summary report data", async () => {
     const hxOsa = {
       _id: 12,

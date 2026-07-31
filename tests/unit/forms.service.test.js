@@ -1,10 +1,21 @@
 const createFormsService = require("../../server/modules/forms/forms.service");
 
 function createFormsRepository(overrides = {}) {
+  const patient = {
+    queueNo: 22,
+    stationEligibilityInputs: {},
+    stationProjectionVersion: 1,
+    stationProjectionRevision: 0,
+  };
   return {
-    findPatientByQueueNo: vi.fn().mockResolvedValue({ queueNo: 22 }),
+    findPatientByQueueNo: vi.fn().mockResolvedValue(patient),
     insertFormDocument: vi.fn().mockResolvedValue({ insertedId: "form-id" }),
     updatePatient: vi.fn().mockResolvedValue({ modifiedCount: 1 }),
+    updatePatientAfterForm: vi.fn().mockResolvedValue({
+      ...patient,
+      customForm: 22,
+      stationProjectionRevision: 1,
+    }),
     updateFormDocument: vi.fn().mockResolvedValue({ modifiedCount: 1 }),
     findFormDocument: vi.fn().mockResolvedValue(null),
     upsertFormDocument: vi.fn().mockResolvedValue({ modifiedCount: 1 }),
@@ -96,11 +107,72 @@ describe("forms.service", () => {
         22,
         payload,
       );
-      expect(formsRepository.updatePatient).toHaveBeenCalledWith(22, {
-        $set: { customForm: 22 },
-      });
-      expect(onFormSubmitted).toHaveBeenCalledWith(22);
-      expect(onFormAReadyCheck).toHaveBeenCalledWith(22);
+      expect(formsRepository.updatePatientAfterForm).toHaveBeenCalledWith(
+        22,
+        expect.objectContaining({
+          $set: expect.objectContaining({ customForm: 22 }),
+          $inc: { stationProjectionRevision: 1 },
+        }),
+      );
+      expect(onFormSubmitted).toHaveBeenCalledWith(expect.objectContaining({ queueNo: 22 }));
+      expect(onFormAReadyCheck).toHaveBeenCalledWith(expect.objectContaining({ queueNo: 22 }));
+    });
+
+    it("updates registration side effects and only projected eligibility fields", async () => {
+      const { service, formsRepository } = createService();
+
+      await service.submitForm(
+        "registrationForm",
+        22,
+        {
+          registrationQ2: "ABC",
+          registrationQ4: 68,
+          registrationQ5: "Female",
+          registrationQ11: "No",
+          ignoredAnswer: "do not duplicate",
+        },
+        { is_admin: false },
+      );
+
+      expect(formsRepository.updatePatientAfterForm).toHaveBeenCalledWith(
+        22,
+        expect.objectContaining({
+          $set: expect.objectContaining({
+            registrationForm: 22,
+            initials: "ABC",
+            age: 68,
+            "stationEligibilityInputs.reg": {
+              registrationQ4: 68,
+              registrationQ5: "Female",
+              registrationQ11: "No",
+            },
+            stationProjectionVersion: 1,
+          }),
+        }),
+      );
+      expect(
+        formsRepository.updatePatientAfterForm.mock.calls[0][1].$set[
+          "stationEligibilityInputs.reg"
+        ],
+      ).not.toHaveProperty("ignoredAnswer");
+    });
+
+    it("updates G-RACE eligibility in the combined patient update", async () => {
+      const { service, formsRepository } = createService();
+
+      await service.submitForm(
+        "geriAmtForm",
+        22,
+        { geriAmtQ12: "Yes (Eligible for G-RACE)" },
+        { is_admin: false },
+      );
+
+      expect(formsRepository.updatePatientAfterForm).toHaveBeenCalledWith(
+        22,
+        expect.objectContaining({
+          $set: expect.objectContaining({ isEligibleForGrace: true }),
+        }),
+      );
     });
   });
 
@@ -159,8 +231,8 @@ describe("forms.service", () => {
           lastEditedBy: "admin@example.com",
         }),
       );
-      expect(onFormSubmitted).toHaveBeenCalledWith(22);
-      expect(onFormAReadyCheck).toHaveBeenCalledWith(22);
+      expect(onFormSubmitted).toHaveBeenCalledWith(expect.objectContaining({ queueNo: 22 }));
+      expect(onFormAReadyCheck).toHaveBeenCalledWith(expect.objectContaining({ queueNo: 22 }));
     });
   });
 
@@ -175,21 +247,47 @@ describe("forms.service", () => {
       consoleError.mockRestore();
     });
 
-    it("still succeeds when station recalculation fails", async () => {
+    it("surfaces a station recalculation failure after retries", async () => {
       const { service, formsRepository, onFormAReadyCheck } = createService({
         onFormSubmitted: vi.fn().mockRejectedValue(new Error("station failure")),
       });
 
       await expect(
         service.submitForm("customForm", 22, { answer: "yes" }, { is_admin: false }),
-      ).resolves.toEqual({ status: 200, body: { result: true } });
+      ).rejects.toThrow("station failure");
 
       expect(formsRepository.insertFormDocument).toHaveBeenCalled();
-      expect(onFormAReadyCheck).toHaveBeenCalledWith(22);
+      expect(onFormAReadyCheck).not.toHaveBeenCalled();
       expect(consoleError).toHaveBeenCalledWith(
         "Failed to recalculate station counts for patient 22:",
         expect.any(Error),
       );
+    });
+
+    it("retries transient station recalculation failures", async () => {
+      const onFormSubmitted = vi
+        .fn()
+        .mockRejectedValueOnce(new Error("temporary"))
+        .mockResolvedValueOnce();
+      const { service } = createService({ onFormSubmitted });
+
+      await expect(
+        service.submitForm("customForm", 22, { answer: "yes" }, { is_admin: false }),
+      ).resolves.toEqual({ status: 200, body: { result: true } });
+      expect(onFormSubmitted).toHaveBeenCalledTimes(2);
+    });
+
+    it("re-runs finalization after a duplicate canonical insert", async () => {
+      const formsRepository = createFormsRepository({
+        insertFormDocument: vi.fn().mockRejectedValue(Object.assign(new Error("duplicate"), { code: 11000 })),
+      });
+      const { service, onFormSubmitted } = createService({ formsRepository });
+
+      await expect(
+        service.submitForm("customForm", 22, { answer: "yes" }, { is_admin: false }),
+      ).resolves.toEqual({ status: 200, body: { result: true } });
+      expect(formsRepository.updatePatientAfterForm).toHaveBeenCalled();
+      expect(onFormSubmitted).toHaveBeenCalled();
     });
 
     it("still succeeds when Form A readiness checking fails", async () => {
@@ -202,7 +300,7 @@ describe("forms.service", () => {
       ).resolves.toEqual({ status: 200, body: { result: true } });
 
       expect(formsRepository.insertFormDocument).toHaveBeenCalled();
-      expect(onFormSubmitted).toHaveBeenCalledWith(22);
+      expect(onFormSubmitted).toHaveBeenCalledWith(expect.objectContaining({ queueNo: 22 }));
       expect(consoleError).toHaveBeenCalledWith(
         "Failed to check Form A queue readiness for patient 22:",
         expect.any(Error),
@@ -337,11 +435,14 @@ describe("forms.service", () => {
         payload,
         "user@example.com",
       );
-      expect(formsRepository.updatePatient).toHaveBeenCalledWith(22, {
-        $set: { customForm: 22 },
-      });
-      expect(onFormSubmitted).toHaveBeenCalledWith(22);
-      expect(onFormAReadyCheck).toHaveBeenCalledWith(22);
+      expect(formsRepository.updatePatientAfterForm).toHaveBeenCalledWith(
+        22,
+        expect.objectContaining({
+          $set: expect.objectContaining({ customForm: 22 }),
+        }),
+      );
+      expect(onFormSubmitted).toHaveBeenCalledWith(expect.objectContaining({ queueNo: 22 }));
+      expect(onFormAReadyCheck).toHaveBeenCalledWith(expect.objectContaining({ queueNo: 22 }));
     });
 
     it("parses JSON string payloads before upserting", async () => {

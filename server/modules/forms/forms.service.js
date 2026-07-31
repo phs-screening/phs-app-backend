@@ -4,36 +4,92 @@ const {
   getFormRegistryInfo,
 } = require("./formRegistry");
 const { applyFormDerivations } = require("./formDerivations");
+const {
+  STATION_PROJECTION_VERSION,
+  extractEligibilityInput,
+} = require("../stations/stationProjection");
+const { withRetry } = require("../../utils/retry");
 
-function createFormsService({ formsRepository, onFormSubmitted, onFormAReadyCheck }) {
-  async function recalculateStationCounts(patientId) {
+function createFormsService({
+  formsRepository,
+  onFormSubmitted,
+  onFormAReadyCheck,
+  preparePatientProjection,
+}) {
+  async function recalculateStationCounts(patient) {
     if (!onFormSubmitted) {
       return;
     }
 
     try {
-      await onFormSubmitted(patientId);
-    } catch (e) {
+      await withRetry(() => onFormSubmitted(patient));
+    } catch (error) {
       console.error(
-        `Failed to recalculate station counts for patient ${patientId}:`,
-        e,
+        `Failed to recalculate station counts for patient ${patient.queueNo}:`,
+        error,
       );
+      throw error;
     }
   }
 
-  async function maybeEnqueueFormA(patientId) {
+  async function maybeEnqueueFormA(patient) {
     if (!onFormAReadyCheck) {
       return;
     }
 
     try {
-      await onFormAReadyCheck(patientId);
-    } catch (e) {
+      await onFormAReadyCheck(patient);
+    } catch (error) {
       console.error(
-        `Failed to check Form A queue readiness for patient ${patientId}:`,
-        e,
+        `Failed to check Form A queue readiness for patient ${patient.queueNo}:`,
+        error,
       );
     }
+  }
+
+  async function ensureProjection(patient) {
+    return preparePatientProjection ? preparePatientProjection(patient) : patient;
+  }
+
+  function buildPatientUpdate(formCollection, patientId, payload) {
+    const set = { [formCollection]: patientId };
+
+    if (formCollection === "registrationForm") {
+      set.initials = payload.registrationQ2;
+      set.age = payload.registrationQ4;
+    }
+
+    if (formCollection === "geriAmtForm") {
+      set.isEligibleForGrace =
+        payload.geriAmtQ12 === "Yes (Eligible for G-RACE)";
+    }
+
+    const eligibilityInput = extractEligibilityInput(formCollection, payload);
+    if (eligibilityInput) {
+      set[`stationEligibilityInputs.${eligibilityInput.alias}`] = eligibilityInput.data;
+      set.stationProjectionVersion = STATION_PROJECTION_VERSION;
+    }
+
+    return {
+      $set: set,
+      $inc: { stationProjectionRevision: 1 },
+    };
+  }
+
+  async function finalizeFormSave(formCollection, patientId, payload) {
+    const updatedPatient = await withRetry(() =>
+      formsRepository.updatePatientAfterForm(
+        patientId,
+        buildPatientUpdate(formCollection, patientId, payload),
+      ),
+    );
+    if (!updatedPatient) {
+      throw new Error(`Patient ${patientId} disappeared while saving ${formCollection}`);
+    }
+
+    await recalculateStationCounts(updatedPatient);
+    await maybeEnqueueFormA(updatedPatient);
+    return updatedPatient;
   }
 
   async function submitForm(formCollection, patientId, payload, user) {
@@ -44,7 +100,7 @@ function createFormsService({ formsRepository, onFormSubmitted, onFormAReadyChec
       };
     }
 
-    const patient = await formsRepository.findPatientByQueueNo(patientId);
+    let patient = await formsRepository.findPatientByQueueNo(patientId);
     if (!patient) {
       return {
         status: 404,
@@ -52,27 +108,32 @@ function createFormsService({ formsRepository, onFormSubmitted, onFormAReadyChec
       };
     }
 
+    patient = await ensureProjection(patient);
     const payloadWithDerivations = applyFormDerivations(formCollection, payload);
 
     if (patient[formCollection] === undefined) {
-      await formsRepository.insertFormDocument(
+      try {
+        await formsRepository.insertFormDocument(
+          formCollection,
+          patientId,
+          payloadWithDerivations,
+        );
+      } catch (error) {
+        // A retry after a successful canonical insert may hit a duplicate key.
+        // Continue to finalization so the retry remains safe and idempotent.
+        if (error?.code !== 11000) throw error;
+      }
+
+      await finalizeFormSave(
         formCollection,
         patientId,
         payloadWithDerivations,
       );
 
-      await formsRepository.updatePatient(patientId, {
-        $set: { [formCollection]: patientId },
-      });
-
-      await applyPatientSideEffects(formCollection, patientId, payloadWithDerivations);
-      await recalculateStationCounts(patientId);
-      await maybeEnqueueFormA(patientId);
-
       return { status: 200, body: { result: true } };
     }
 
-    if (user.is_admin) {
+    if (user.is_admin || patient.stationProjectionNeedsRepair) {
       const updatedPayload = {
         ...payloadWithDerivations,
         lastEdited: new Date(),
@@ -84,9 +145,7 @@ function createFormsService({ formsRepository, onFormSubmitted, onFormAReadyChec
         patientId,
         updatedPayload,
       );
-      await applyPatientSideEffects(formCollection, patientId, updatedPayload);
-      await recalculateStationCounts(patientId);
-      await maybeEnqueueFormA(patientId);
+      await finalizeFormSave(formCollection, patientId, updatedPayload);
 
       return { status: 200, body: { result: true } };
     }
@@ -103,25 +162,6 @@ function createFormsService({ formsRepository, onFormSubmitted, onFormAReadyChec
     }
 
     return submitForm(form.collection, patientId, payload, user);
-  }
-
-  async function applyPatientSideEffects(formCollection, patientId, payload) {
-    if (formCollection === "registrationForm") {
-      await formsRepository.updatePatient(patientId, {
-        $set: {
-          initials: payload.registrationQ2,
-          age: payload.registrationQ4,
-        },
-      });
-    }
-
-    if (formCollection === "geriAmtForm") {
-      const eligibleForGrace =
-        payload.geriAmtQ12 === "Yes (Eligible for G-RACE)";
-      await formsRepository.updatePatient(patientId, {
-        $set: { isEligibleForGrace: eligibleForGrace },
-      });
-    }
   }
 
   function getInfo() {
@@ -202,10 +242,14 @@ function createFormsService({ formsRepository, onFormSubmitted, onFormAReadyChec
       typeof formData === "string" ? JSON.parse(formData) : formData;
     const parsedWithDerivations = applyFormDerivations(form, parsed);
 
+    let patient = await formsRepository.findPatientByQueueNo(id);
+    if (!patient) {
+      return { status: 404, body: { result: false, error: "Patient not found" } };
+    }
+    patient = await ensureProjection(patient);
+
     await formsRepository.upsertFormDocument(form, id, parsedWithDerivations, user.email);
-    await formsRepository.updatePatient(id, { $set: { [form]: id } });
-    await recalculateStationCounts(id);
-    await maybeEnqueueFormA(id);
+    await finalizeFormSave(form, id, parsedWithDerivations);
 
     return { status: 200, body: { result: true } };
   }

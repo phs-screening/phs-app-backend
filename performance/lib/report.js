@@ -137,7 +137,13 @@ export function performanceSummary(data) {
   }
 
   if (__ENV.PERF_JSON_OUTPUT) {
-    result[__ENV.PERF_JSON_OUTPUT] = JSON.stringify(data, null, 2);
+    const safeData = {
+      ...data,
+      setup_data: data.setup_data
+        ? { ...data.setup_data, token: "[redacted]" }
+        : data.setup_data,
+    };
+    result[__ENV.PERF_JSON_OUTPUT] = JSON.stringify(safeData, null, 2);
   }
 
   return result;

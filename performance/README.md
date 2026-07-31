@@ -126,7 +126,11 @@ After removing the duplicate frontend recalculation, set:
 
 ```powershell
 $env:SELECT_INCLUDE_RECALC = "false"
+$env:SELECT_COMBINED_SUMMARY = "true"
 ```
+
+`SELECT_COMBINED_SUMMARY=true` measures the optimized frontend path where the
+station-summary response supplies both the sanitized patient and timeline data.
 
 Form-save baseline:
 

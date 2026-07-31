@@ -1,12 +1,17 @@
 const { buildStationCompletionStatus } = require("../stations/stationRegistry");
 
 function createFormAService({ formARepository, printQueuesService }) {
-  async function maybeEnqueueFormA(patientId) {
+  async function maybeEnqueueFormA(patientOrId) {
+    const patientId =
+      typeof patientOrId === "object" ? patientOrId?.queueNo : patientOrId;
     if (Number.isNaN(patientId)) {
       return;
     }
 
-    const patient = await formARepository.findPatientByQueueNo(patientId);
+    const patient =
+      typeof patientOrId === "object"
+        ? patientOrId
+        : await formARepository.findPatientByQueueNo(patientId);
     if (!patient) {
       return;
     }
