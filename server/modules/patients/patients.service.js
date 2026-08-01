@@ -1,5 +1,9 @@
 const { buildStationCompletionStatus } = require("../stations/stationRegistry");
 const { getFormDefinition } = require("../forms/formRegistry");
+const {
+  STATION_PROJECTION_VERSION,
+  sanitizePatient,
+} = require("../stations/stationProjection");
 
 const summaryReportFormKeys = {
   registration: "registration",
@@ -73,10 +77,13 @@ function createPatientsService({ patientsRepository }) {
       goingForPhlebotomy: goingForPhlebotomy ?? "No",
       createdAt: new Date(),
       createdBy: user?.email,
+      stationEligibilityInputs: {},
+      stationProjectionVersion: STATION_PROJECTION_VERSION,
+      stationProjectionRevision: 0,
     };
 
     await patientsRepository.insertPatient(doc);
-    return { status: 200, body: { result: true, data: doc } };
+    return { status: 200, body: { result: true, data: sanitizePatient(doc) } };
   }
 
   async function getPatientRecord(id, collection) {
@@ -87,7 +94,13 @@ function createPatientsService({ patientsRepository }) {
     const rec = collection
       ? await patientsRepository.findRecordByCollectionAndId(collection, id)
       : await patientsRepository.findPatientByQueueNo(id);
-    return { status: 200, body: { result: true, data: rec } };
+    return {
+      status: 200,
+      body: {
+        result: true,
+        data: collection && collection !== "patients" ? rec : sanitizePatient(rec),
+      },
+    };
   }
 
   function hasPatientNamesQuery(query = {}) {
@@ -179,7 +192,13 @@ function createPatientsService({ patientsRepository }) {
       collection,
       initials,
     );
-    return { status: 200, body: { result: true, data: rec } };
+    return {
+      status: 200,
+      body: {
+        result: true,
+        data: collection === "patients" ? sanitizePatient(rec) : rec,
+      },
+    };
   }
 
   async function getPatientFormsStatus(patientId) {
@@ -229,7 +248,7 @@ function createPatientsService({ patientsRepository }) {
         result: true,
         data: {
           patientId,
-          patients: patient,
+          patients: sanitizePatient(patient),
           ...forms,
         },
       },

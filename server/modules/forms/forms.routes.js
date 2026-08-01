@@ -20,8 +20,9 @@ function createFormsRoutes({ getDb, authenticateToken }) {
   const stationsService = createStationsService({ stationsRepository });
   const formsService = createFormsService({
     formsRepository,
-    onFormSubmitted: stationsService.recalculatePatientStationCounts,
+    onFormSubmitted: stationsService.persistPatientStationCounts,
     onFormAReadyCheck: formAService.maybeEnqueueFormA,
+    preparePatientProjection: stationsService.ensurePatientProjection,
   });
   const formsController = createFormsController({ formsService });
 

@@ -68,6 +68,33 @@ function createPrintQueuesRepository({ getDb }) {
     return collection.insertOne(doc);
   }
 
+  async function upsertEntry(queue, patientId, doc) {
+    const collection = await getCollection(queue);
+    const patientKey = String(patientId).trim();
+    const patientIdValues = buildPatientIdValues(patientId);
+
+    try {
+      return await collection.updateOne(
+        {
+          $or: [
+            { patientKey },
+            { patientId: { $in: patientIdValues } },
+          ],
+        },
+        {
+          $set: { patientKey },
+          $setOnInsert: doc,
+        },
+        { upsert: true },
+      );
+    } catch (error) {
+      if (error?.code === 11000) {
+        return { matchedCount: 1, modifiedCount: 0, upsertedCount: 0 };
+      }
+      throw error;
+    }
+  }
+
   async function markPrinted(queue, id) {
     const collection = await getCollection(queue);
     return collection.updateOne(
@@ -85,6 +112,7 @@ function createPrintQueuesRepository({ getDb }) {
     findByPrintedStatus,
     findExistingEntry,
     insertEntry,
+    upsertEntry,
     markPrinted,
     deleteEntry,
   };
