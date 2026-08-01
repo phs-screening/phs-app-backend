@@ -50,7 +50,7 @@ function getSummaryReportFormDefinitions() {
   );
 }
 
-function createPatientsService({ patientsRepository }) {
+function createPatientsService({ patientsRepository, patientQueueRepository }) {
   async function createPatient(input, user) {
     const { gender, initials, age, preferredLanguage, goingForPhlebotomy } =
       input || {};
@@ -62,7 +62,7 @@ function createPatientsService({ patientsRepository }) {
       };
     }
 
-    const queueNo = await patientsRepository.getNextPatientQueueNo();
+    const queueNo = await patientQueueRepository.getNextPatientQueueNo();
 
     const doc = {
       queueNo,

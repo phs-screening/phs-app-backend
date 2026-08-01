@@ -16,15 +16,19 @@ function createService(options = {}) {
   const formsRepository = options.formsRepository || createFormsRepository();
   const onFormSubmitted = options.onFormSubmitted || vi.fn().mockResolvedValue();
   const onFormAReadyCheck = options.onFormAReadyCheck || vi.fn().mockResolvedValue();
+  const onRegistrationSubmitted =
+    options.onRegistrationSubmitted || vi.fn().mockResolvedValue();
 
   return {
     formsRepository,
     onFormSubmitted,
     onFormAReadyCheck,
+    onRegistrationSubmitted,
     service: createFormsService({
       formsRepository,
       onFormSubmitted,
       onFormAReadyCheck,
+      onRegistrationSubmitted,
     }),
   };
 }
@@ -101,6 +105,19 @@ describe("forms.service", () => {
       });
       expect(onFormSubmitted).toHaveBeenCalledWith(22);
       expect(onFormAReadyCheck).toHaveBeenCalledWith(22);
+    });
+
+    it("completes staging only after a Registration form submission", async () => {
+      const { service, onRegistrationSubmitted } = createService();
+
+      await service.submitForm(
+        "registrationForm",
+        22,
+        { registrationQ2: "Yeo Z W D", registrationQ4: 61 },
+        { is_admin: false },
+      );
+
+      expect(onRegistrationSubmitted).toHaveBeenCalledWith(22);
     });
   });
 

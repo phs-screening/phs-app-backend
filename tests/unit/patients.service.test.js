@@ -20,7 +20,10 @@ describe("patients.service", () => {
     const patientsRepository = createPatientsRepository({
       findSummaryReportForms: vi.fn().mockResolvedValue({ hxOsa }),
     });
-    const service = createPatientsService({ patientsRepository });
+    const service = createPatientsService({
+      patientsRepository,
+      patientQueueRepository: {},
+    });
 
     const result = await service.getSummaryReportData(12);
 
@@ -44,7 +47,10 @@ describe("patients.service", () => {
     const patientsRepository = createPatientsRepository({
       findSummaryReportForms: vi.fn().mockResolvedValue({ scoliosis }),
     });
-    const service = createPatientsService({ patientsRepository });
+    const service = createPatientsService({
+      patientsRepository,
+      patientQueueRepository: {},
+    });
 
     const result = await service.getSummaryReportData(12);
 
@@ -61,7 +67,10 @@ describe("patients.service", () => {
 
   it("returns an empty scoliosis object when the form is missing", async () => {
     const patientsRepository = createPatientsRepository();
-    const service = createPatientsService({ patientsRepository });
+    const service = createPatientsService({
+      patientsRepository,
+      patientQueueRepository: {},
+    });
 
     const result = await service.getSummaryReportData(12);
 

@@ -4,14 +4,22 @@ require("dotenv").config();
 const PATIENT_QUEUE_COUNTER_ID = "patients.queueNo";
 
 async function getCurrentMaxQueueNo(db) {
-  const lastPatient = await db
-    .collection("patients")
-    .find({}, { projection: { queueNo: 1 } })
-    .sort({ queueNo: -1 })
-    .limit(1)
-    .next();
+  const [lastPatient, lastPrefill] = await Promise.all([
+    db
+      .collection("patients")
+      .find({}, { projection: { queueNo: 1 } })
+      .sort({ queueNo: -1 })
+      .limit(1)
+      .next(),
+    db
+      .collection("preRegistrationPrefill")
+      .find({}, { projection: { queueNo: 1 } })
+      .sort({ queueNo: -1 })
+      .limit(1)
+      .next(),
+  ]);
 
-  return lastPatient?.queueNo || 0;
+  return Math.max(lastPatient?.queueNo || 0, lastPrefill?.queueNo || 0);
 }
 
 async function advancePatientQueueCounter(db) {
@@ -63,6 +71,34 @@ async function setup() {
     await db.collection("stationCounts").createIndex(
       { queueNo: 1 },
       { unique: true, name: "unique_queueNo" },
+    );
+    await db.collection("preRegistrationImports").createIndex(
+      { source: 1, sourceRecordKey: 1 },
+      { unique: true, name: "unique_source_record" },
+    );
+    await db.collection("preRegistrationPrefill").createIndex(
+      { rawImportId: 1 },
+      { unique: true, name: "unique_raw_import" },
+    );
+    await db.collection("preRegistrationPrefill").createIndex(
+      { queueNo: 1 },
+      { unique: true, name: "unique_queueNo" },
+    );
+    await db.collection("preRegistrationPrefill").createIndex(
+      { patientId: 1 },
+      {
+        unique: true,
+        partialFilterExpression: { patientId: { $type: "number" } },
+        name: "unique_patientId",
+      },
+    );
+    await db.collection("preRegistrationPrefill").createIndex(
+      {
+        "lookup.normalizedInitials": 1,
+        "lookup.dateOfBirth": 1,
+        status: 1,
+      },
+      { name: "initials_birthday_status" },
     );
 
     for (const collection of ["docPdfQueue", "formAPdfQueue"]) {

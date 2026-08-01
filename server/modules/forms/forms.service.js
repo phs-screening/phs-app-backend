@@ -5,7 +5,12 @@ const {
 } = require("./formRegistry");
 const { applyFormDerivations } = require("./formDerivations");
 
-function createFormsService({ formsRepository, onFormSubmitted, onFormAReadyCheck }) {
+function createFormsService({
+  formsRepository,
+  onFormSubmitted,
+  onFormAReadyCheck,
+  onRegistrationSubmitted,
+}) {
   async function recalculateStationCounts(patientId) {
     if (!onFormSubmitted) {
       return;
@@ -31,6 +36,21 @@ function createFormsService({ formsRepository, onFormSubmitted, onFormAReadyChec
     } catch (e) {
       console.error(
         `Failed to check Form A queue readiness for patient ${patientId}:`,
+        e,
+      );
+    }
+  }
+
+  async function maybeCompletePreRegistration(formCollection, patientId) {
+    if (formCollection !== "registrationForm" || !onRegistrationSubmitted) {
+      return;
+    }
+
+    try {
+      await onRegistrationSubmitted(patientId);
+    } catch (e) {
+      console.error(
+        `Failed to complete pre-registration for patient ${patientId}:`,
         e,
       );
     }
@@ -66,6 +86,7 @@ function createFormsService({ formsRepository, onFormSubmitted, onFormAReadyChec
       });
 
       await applyPatientSideEffects(formCollection, patientId, payloadWithDerivations);
+      await maybeCompletePreRegistration(formCollection, patientId);
       await recalculateStationCounts(patientId);
       await maybeEnqueueFormA(patientId);
 
@@ -85,6 +106,7 @@ function createFormsService({ formsRepository, onFormSubmitted, onFormAReadyChec
         updatedPayload,
       );
       await applyPatientSideEffects(formCollection, patientId, updatedPayload);
+      await maybeCompletePreRegistration(formCollection, patientId);
       await recalculateStationCounts(patientId);
       await maybeEnqueueFormA(patientId);
 

@@ -83,6 +83,31 @@ npm run seed:sample-patients -- --count=100
 
 The seed script also advances the patient queue number counter so future registrations do not collide with inserted sample patients.
 
+## Pre-Registration Import
+
+Run database setup before the first live import so the staging collections have
+their unique indexes and the queue counter accounts for reserved queue numbers.
+
+Validate an Excel export without writing to MongoDB:
+
+```bash
+npm run prereg:import -- --file "path/to/responses.xlsx" --dry-run
+```
+
+Import the workbook after reviewing the summary:
+
+```bash
+npm run prereg:import -- --file "path/to/responses.xlsx"
+```
+
+The complete FormSG response is stored in `preRegistrationImports`. The export
+must include a `Booking ID`, `Response ID`, or `Submission ID`; this stable
+identifier prevents duplicate queue numbers when a workbook is imported again.
+`preRegistrationPrefill` contains only Registration prefill fields, lookup
+metadata, mapping warnings, and the reserved queue number. Neither collection is
+registered as a generic screening form, and the authenticated lookup endpoints
+return only explicitly sanitized fields.
+
 ## Current Structure
 
 ```text

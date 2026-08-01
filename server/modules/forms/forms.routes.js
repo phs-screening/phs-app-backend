@@ -8,6 +8,7 @@ const createPrintQueuesRepository = require("../printQueues/printQueues.reposito
 const createPrintQueuesService = require("../printQueues/printQueues.service");
 const createStationsRepository = require("../stations/stations.repository");
 const createStationsService = require("../stations/stations.service");
+const createPreRegistrationsRepository = require("../preRegistrations/preRegistrations.repository");
 
 function createFormsRoutes({ getDb, authenticateToken }) {
   const router = express.Router();
@@ -18,10 +19,13 @@ function createFormsRoutes({ getDb, authenticateToken }) {
   const formAService = createFormAService({ formARepository, printQueuesService });
   const stationsRepository = createStationsRepository({ getDb });
   const stationsService = createStationsService({ stationsRepository });
+  const preRegistrationsRepository = createPreRegistrationsRepository({ getDb });
   const formsService = createFormsService({
     formsRepository,
     onFormSubmitted: stationsService.recalculatePatientStationCounts,
     onFormAReadyCheck: formAService.maybeEnqueueFormA,
+    onRegistrationSubmitted:
+      preRegistrationsRepository.markCompletedByPatientId,
   });
   const formsController = createFormsController({ formsService });
 

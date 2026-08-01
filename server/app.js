@@ -7,6 +7,7 @@ const createAuthRoutes = require('./modules/auth/auth.routes');
 const createEventDashboardRoutes = require('./modules/eventDashboard/eventDashboard.routes');
 const createFormsRoutes = require('./modules/forms/forms.routes');
 const createPatientsRoutes = require('./modules/patients/patients.routes');
+const createPreRegistrationsRoutes = require('./modules/preRegistrations/preRegistrations.routes');
 const createPrintQueueRoutes = require('./modules/printQueues/printQueues.routes');
 const createProfilesRoutes = require('./modules/profiles/profiles.routes');
 const createQueuesRoutes = require('./modules/queues/queues.routes');
@@ -45,6 +46,7 @@ function createApp(overrides = {}) {
   app.use('/api', createProfilesRoutes(deps));
   app.use('/api', createQueuesRoutes(deps));
   app.use('/api', createPatientsRoutes(deps));
+  app.use('/api', createPreRegistrationsRoutes(deps));
   app.use('/api', createFormsRoutes(deps));
   app.use('/api', createStationsRoutes(deps));
   app.use('/api', createAuthRoutes(deps));
