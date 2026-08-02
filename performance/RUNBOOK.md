@@ -175,3 +175,88 @@ Markdown, raw JSON, shell logs, or Git.
 
 - `results/2026-07-31-issue1-selection-active50-baseline-run1.md`
 - `results/2026-07-31-issue1-selection-burst50-baseline-run1.md`
+
+## Future patient-name search procedure
+
+> **Not yet authorized:** this section documents a future workflow only. Do not
+> create the search dataset, run k6 traffic, capture explain output, or record a
+> baseline until the baseline is explicitly authorized.
+
+The governing metric contract is
+[`NAME_SEARCH_METRICS.md`](./NAME_SEARCH_METRICS.md). Use
+[`results/NAME_SEARCH_TEMPLATE.md`](./results/NAME_SEARCH_TEMPLATE.md) for every
+future run.
+
+### 1. Confirm isolation and record the environment
+
+- Obtain explicit confirmation that the database is disposable local or
+  staging infrastructure.
+- Record the frontend and backend revisions and dirty/clean status.
+- Record Node and k6 versions, backend instance count, MongoDB tier and region,
+  driver/pool configuration, and test-runner location.
+- Ensure no unrelated load test, seed, migration, or database maintenance job
+  is running.
+
+### 2. Prepare the fixed search dataset
+
+- Reset and seed exactly 2,000 deterministic synthetic patients using the future
+  dedicated name-search seeder.
+- Create matching registration documents required for birthday lookup.
+- Use no production patients, real names, credentials, or other personal data.
+- Produce a query manifest with expected result identifiers and counts for
+  common, medium, rare, absent, duplicate-full-name, and mixed-case searches.
+- Verify as a mandatory fixture invariant that `Tan`, `tan`, and `TAN` each
+  return `Mel Tan`.
+- Run the database index setup required by the scenario, then record its
+  revision with the dataset identifier.
+
+### 3. Start one known backend and pass health gates
+
+Follow the existing Windows process guidance: remove only stale processes that
+belong to this repository, start one managed backend without nodemon, and use
+hard request timeouts.
+
+Before load, require all of these checks to pass:
+
+1. Login with the disposable performance volunteer.
+2. Read one seeded patient and verify its expected queue number.
+3. Request autocomplete with `Tan` and verify `Mel Tan` is present.
+4. Request exact-name matches for `Mel Tan` and verify the expected synthetic
+   duplicate rows and birthdays.
+5. Confirm the result cache is disabled.
+
+Stop and diagnose the environment if any health gate fails or hangs.
+
+### 4. Warm and execute comparable profiles
+
+- Warm every query in the fixed manifest before recording custom metrics.
+- Run `single-user`, `active-50`, and `burst-50` separately.
+- Treat `active-50` as the principal capacity result and `burst-50` as a
+  synchronized stress result.
+- Enforce the existing hard request timeout and maximum run duration rules.
+- Do not run offline `explain("executionStats")` concurrently with k6.
+
+### 5. Repeat and compare
+
+- Run each profile three times for the baseline and three times for the optimized
+  implementation.
+- Retain every result, including threshold failures; never select only the
+  fastest run.
+- Compare the median of the three run-level p95 values.
+- Use the same 2,000-patient dataset contents, query manifest, environment,
+  indexes, warm-up procedure, and profile configuration for baseline and after.
+- Capture offline explain statistics for both revisions using the same dataset
+  and queries, then record them in the result template.
+
+### 6. Validate and clean up
+
+- Confirm all intended iterations completed and result Markdown/raw JSON were
+  written to the intended locations.
+- Review combined-flow, autocomplete, and exact-match p95/p99, failure rate,
+  request count, throughput, and available database metrics.
+- Confirm matching equivalence for all queries of two or more characters and
+  the mandatory `Tan`/`tan`/`TAN` behavior.
+- Stop the exact backend process started for the run and verify its listener is
+  gone.
+- Keep raw JSON, credentials, generated datasets, and query manifests containing
+  run-specific data out of Git according to the repository ignore rules.

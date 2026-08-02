@@ -34,6 +34,14 @@ The executable k6 scenarios live under `scenarios/`:
 The PowerShell wrapper records Git revisions and can emit a Markdown summary plus
 ignored raw JSON.
 
+A planned second investigation covers patient-name search under 50 concurrent
+users while retaining case-insensitive substring matching. Its measurement
+contract is in [`NAME_SEARCH_METRICS.md`](./NAME_SEARCH_METRICS.md), and its
+result-recording structure is in
+[`results/NAME_SEARCH_TEMPLATE.md`](./results/NAME_SEARCH_TEMPLATE.md). This is
+currently documentation only: no name-search scenario, dataset, baseline, or
+comparison run has been authorized or created.
+
 ## Safety rules
 
 - Run write scenarios only against a disposable local or staging database.
@@ -61,7 +69,9 @@ performance/
     patient-selection.js
   results/
     TEMPLATE.md
+    NAME_SEARCH_TEMPLATE.md
   METRICS.md
+  NAME_SEARCH_METRICS.md
   README.md
   RUNBOOK.md
   run.ps1
