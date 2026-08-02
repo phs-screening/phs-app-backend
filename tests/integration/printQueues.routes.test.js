@@ -79,12 +79,26 @@ function createPrintQueueCollection(initialEntries = []) {
       entries.push(inserted);
       return { insertedId: inserted._id };
     }),
-    updateOne: vi.fn(async (filter, update) => {
-      const entry = entries.find((item) => String(item._id) === String(filter._id));
-      if (!entry) return { matchedCount: 0, modifiedCount: 0 };
+    updateOne: vi.fn(async (filter, update, options = {}) => {
+      let entry = filter.$or
+        ? entries.find((item) =>
+            filter.$or.some((condition) =>
+              condition.patientKey !== undefined
+                ? item.patientKey === condition.patientKey
+                : condition.patientId?.$in?.includes(item.patientId),
+            ),
+          )
+        : entries.find((item) => String(item._id) === String(filter._id));
+      if (!entry && options.upsert) {
+        entry = { _id: new ObjectId(), ...(update.$setOnInsert || {}) };
+        entries.push(entry);
+        Object.assign(entry, update.$set || {});
+        return { matchedCount: 0, modifiedCount: 0, upsertedCount: 1 };
+      }
+      if (!entry) return { matchedCount: 0, modifiedCount: 0, upsertedCount: 0 };
 
       Object.assign(entry, update.$set || {});
-      return { matchedCount: 1, modifiedCount: 1 };
+      return { matchedCount: 1, modifiedCount: 1, upsertedCount: 0 };
     }),
     deleteOne: vi.fn(async (filter) => {
       const index = entries.findIndex((entry) => String(entry._id) === String(filter._id));

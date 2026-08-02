@@ -1,7 +1,7 @@
 function createPatientsRepository({ getDb }) {
   async function getPatientsCollection() {
     const db = await getDb();
-    return db.collection('patients');
+    return db.collection("patients");
   }
 
   async function insertPatient(doc) {
@@ -80,7 +80,12 @@ function createPatientsRepository({ getDb }) {
               as: "registration",
             },
           },
-          { $unwind: { path: "$registration", preserveNullAndEmptyArrays: true } },
+          {
+            $unwind: {
+              path: "$registration",
+              preserveNullAndEmptyArrays: true,
+            },
+          },
           {
             $project: {
               _id: 0,
@@ -90,6 +95,7 @@ function createPatientsRepository({ getDb }) {
               gender: 1,
               preferredLanguage: 1,
               goingForPhlebotomy: 1,
+              registrationForm: 1,
               birthday: "$registration.registrationQ3",
             },
           },
@@ -103,7 +109,7 @@ function createPatientsRepository({ getDb }) {
 
   async function findRecordByCollectionAndId(collection, id) {
     const db = await getDb();
-    const filter = collection === 'patients' ? { queueNo: id } : { _id: id };
+    const filter = collection === "patients" ? { queueNo: id } : { _id: id };
     return db.collection(collection).findOne(filter);
   }
 
@@ -111,7 +117,9 @@ function createPatientsRepository({ getDb }) {
     const db = await getDb();
     const entries = await Promise.all(
       Object.entries(formDefinitions).map(async ([key, form]) => {
-        const document = await db.collection(form.collection).findOne({ _id: patientId });
+        const document = await db
+          .collection(form.collection)
+          .findOne({ _id: patientId });
         return [key, document || {}];
       }),
     );

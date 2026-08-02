@@ -169,6 +169,32 @@ describe("non-form repositories", () => {
       });
     });
 
+    it("atomically upserts using a normalized patient key and legacy IDs", async () => {
+      const collection = {
+        updateOne: vi.fn().mockResolvedValue({ upsertedCount: 1 }),
+      };
+      const repository = createPrintQueuesRepository({
+        getDb: vi.fn().mockResolvedValue(createDb({ formAPdfQueue: collection })),
+      });
+      const doc = { patientId: 22, printed: false };
+
+      await repository.upsertEntry(formAQueue, "22", doc);
+
+      expect(collection.updateOne).toHaveBeenCalledWith(
+        {
+          $or: [
+            { patientKey: "22" },
+            { patientId: { $in: [22, "22"] } },
+          ],
+        },
+        {
+          $set: { patientKey: "22" },
+          $setOnInsert: doc,
+        },
+        { upsert: true },
+      );
+    });
+
     it("marks and deletes entries by ObjectId", async () => {
       const collection = {
         updateOne: vi.fn().mockResolvedValue({ matchedCount: 1 }),

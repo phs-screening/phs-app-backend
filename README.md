@@ -329,6 +329,21 @@ Removing patients from a station overwrites that station's `lastRemoved` batch w
 - completion from each station's `requiredForms`
 - eligibility from the station's named `eligibilityRule`
 - visited and eligible station names/counts
+- a sanitized `patient` object so patient selection and timeline loading can use one request
+
+Eligibility answers used by station rules are stored as a compact internal projection on
+the patient record. Current projections avoid rereading the individual form collections
+when building summaries. Missing or version-mismatched projections are rebuilt lazily
+from canonical forms. When eligibility dependencies change, increment
+`STATION_PROJECTION_VERSION`; direct database form edits require an explicit station-count
+recalculation to repair the projection.
+
+The dependency manifest lives beside the projection extractor in
+`server/modules/stations/stationProjection.js`. Changes to eligibility answers or
+interpretation must update that manifest, increment `STATION_PROJECTION_VERSION`, and
+update equivalence fixtures. Projection and station-count writes use bounded retries;
+permanent failures are surfaced to the caller and flagged for lazy repair on a later
+patient access.
 
 `POST /api/patients/:patientId/station-counts/recalculate` persists the same computed counts into the `stationCounts` collection. Form submissions call this recalculation after successful saves, so station counts stay aligned with backend rules.
 

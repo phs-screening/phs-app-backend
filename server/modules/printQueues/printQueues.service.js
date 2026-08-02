@@ -118,17 +118,6 @@ function createPrintQueuesService({ printQueuesRepository }) {
       };
     }
 
-    const existingEntry = await printQueuesRepository.findExistingEntry(
-      queue,
-      patientId,
-    );
-    if (existingEntry) {
-      return {
-        status: 200,
-        body: { result: true, message: "Patient already in queue" },
-      };
-    }
-
     const doc = {
       patientId,
       printed: false,
@@ -139,6 +128,24 @@ function createPrintQueuesService({ printQueuesRepository }) {
       doc.doctorName = doctorName || "";
     }
 
+    if (printQueuesRepository.upsertEntry) {
+      const result = await printQueuesRepository.upsertEntry(queue, patientId, doc);
+      return {
+        status: 200,
+        body: {
+          result: true,
+          ...(result?.upsertedCount ? {} : { message: "Patient already in queue" }),
+        },
+      };
+    }
+
+    const existingEntry = await printQueuesRepository.findExistingEntry(queue, patientId);
+    if (existingEntry) {
+      return {
+        status: 200,
+        body: { result: true, message: "Patient already in queue" },
+      };
+    }
     await printQueuesRepository.insertEntry(queue, doc);
     return { status: 200, body: { result: true } };
   }

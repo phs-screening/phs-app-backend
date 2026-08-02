@@ -15,17 +15,25 @@ function createFormsRoutes({ getDb, authenticateToken }) {
   const formsRepository = createFormsRepository({ getDb });
   const formARepository = createFormARepository({ getDb });
   const printQueuesRepository = createPrintQueuesRepository({ getDb });
-  const printQueuesService = createPrintQueuesService({ printQueuesRepository });
-  const formAService = createFormAService({ formARepository, printQueuesService });
+  const printQueuesService = createPrintQueuesService({
+    printQueuesRepository,
+  });
+  const formAService = createFormAService({
+    formARepository,
+    printQueuesService,
+  });
   const stationsRepository = createStationsRepository({ getDb });
   const stationsService = createStationsService({ stationsRepository });
-  const preRegistrationsRepository = createPreRegistrationsRepository({ getDb });
+  const preRegistrationsRepository = createPreRegistrationsRepository({
+    getDb,
+  });
   const formsService = createFormsService({
     formsRepository,
-    onFormSubmitted: stationsService.recalculatePatientStationCounts,
+    onFormSubmitted: stationsService.persistPatientStationCounts,
     onFormAReadyCheck: formAService.maybeEnqueueFormA,
     onRegistrationSubmitted:
       preRegistrationsRepository.markCompletedByPatientId,
+    preparePatientProjection: stationsService.ensurePatientProjection,
   });
   const formsController = createFormsController({ formsService });
 

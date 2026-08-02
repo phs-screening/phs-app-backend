@@ -27,6 +27,16 @@ function createFormsRepository({ getDb }) {
     return patients.updateOne({ queueNo }, update);
   }
 
+  async function updatePatientAfterForm(queueNo, update) {
+    const patients = await getCollection('patients');
+    const result = await patients.findOneAndUpdate(
+      { queueNo },
+      update,
+      { returnDocument: 'after' },
+    );
+    return result?.value || result;
+  }
+
   async function findFormDocument(form, patientId) {
     const collection = await getCollection(form);
     return collection.findOne({ _id: patientId });
@@ -49,6 +59,7 @@ function createFormsRepository({ getDb }) {
     insertFormDocument,
     updateFormDocument,
     updatePatient,
+    updatePatientAfterForm,
     findFormDocument,
     upsertFormDocument,
   };

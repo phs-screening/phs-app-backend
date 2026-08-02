@@ -7,6 +7,21 @@ const { JWT_SECRET } = require("../../server/middleware/auth");
 function createPatientsCollection(initialPatients = []) {
   const patients = initialPatients.map((patient) => ({ ...patient }));
 
+  const applyUpdate = (patient, update) => {
+    for (const [path, value] of Object.entries(update.$set || {})) {
+      const parts = path.split(".");
+      let target = patient;
+      for (const part of parts.slice(0, -1)) {
+        target[part] ||= {};
+        target = target[part];
+      }
+      target[parts.at(-1)] = value;
+    }
+    for (const [path, value] of Object.entries(update.$inc || {})) {
+      patient[path] = (patient[path] || 0) + value;
+    }
+  };
+
   return {
     patients,
     findOne: vi.fn(async (filter) =>
@@ -16,8 +31,14 @@ function createPatientsCollection(initialPatients = []) {
       const patient = patients.find((item) => item.queueNo === filter.queueNo);
       if (!patient) return { matchedCount: 0, modifiedCount: 0 };
 
-      Object.assign(patient, update.$set || {});
+      applyUpdate(patient, update);
       return { matchedCount: 1, modifiedCount: 1 };
+    }),
+    findOneAndUpdate: vi.fn(async (filter, update) => {
+      const patient = patients.find((item) => item.queueNo === filter.queueNo);
+      if (!patient) return null;
+      applyUpdate(patient, update);
+      return patient;
     }),
   };
 }
