@@ -9,6 +9,8 @@
     "dev": "nodemon server/index.js",
     "db:setup": "node scripts/setupDatabase.js",
     "prereg:import": "node scripts/importPreRegistrations.js",
+    "sms:plan": "node scripts/planSmsReminders.js",
+    "sms:send": "node scripts/sendSmsReminders.js",
     "seed:sample-patients": "node scripts/seedSamplePatients.js",
     "lint": "eslint server functions tests --ext .js,.cjs",
     "typecheck": "tsc --noEmit --project jsconfig.json",

@@ -100,6 +100,18 @@ async function setup() {
       },
       { name: "initials_birthday_status" },
     );
+    await db
+      .collection("smsReminders")
+      .createIndex(
+        { rawImportId: 1, reminderType: 1, eventDate: 1 },
+        { unique: true, name: "unique_reminder" },
+      );
+    await db
+      .collection("smsReminders")
+      .createIndex(
+        { eventDate: 1, status: 1, queueNo: 1 },
+        { name: "event_status_queueNo" },
+      );
 
     for (const collection of ["docPdfQueue", "formAPdfQueue"]) {
       await db.collection(collection).createIndex(
