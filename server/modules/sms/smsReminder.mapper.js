@@ -29,6 +29,21 @@ function formatDateParts(year, month, day) {
     .join("-");
 }
 
+function parseDateParts(yearValue, monthValue, dayValue) {
+  const year = Number(yearValue);
+  const month = Number(monthValue);
+  const day = Number(dayValue);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  if (
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() + 1 !== month ||
+    parsed.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  return formatDateParts(year, month, day);
+}
+
 function singaporeDateParts(date) {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Asia/Singapore",
@@ -50,12 +65,12 @@ function parseBookingDate(value) {
   const text = cleanText(value);
   const dayFirst = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (dayFirst) {
-    return formatDateParts(dayFirst[3], dayFirst[2], dayFirst[1]);
+    return parseDateParts(dayFirst[3], dayFirst[2], dayFirst[1]);
   }
 
   const iso = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (iso) {
-    return formatDateParts(iso[1], iso[2], iso[3]);
+    return parseDateParts(iso[1], iso[2], iso[3]);
   }
 
   return null;
@@ -80,6 +95,7 @@ function parseBookingTime(value) {
       let hour = Number(time[1]);
       const minute = Number(time[2]);
       const meridiem = time[3]?.toUpperCase();
+      if (meridiem && (hour < 1 || hour > 12)) return null;
       if (meridiem === "PM" && hour < 12) hour += 12;
       if (meridiem === "AM" && hour === 12) hour = 0;
       if (hour <= 23 && minute <= 59) {

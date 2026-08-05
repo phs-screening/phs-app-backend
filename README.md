@@ -168,7 +168,9 @@ resend jobs already accepted, failed, cancelled, or marked with an unknown
 provider outcome. A provider `accepted` response means the request was accepted,
 not that handset delivery was confirmed. The job collection does not store phone
 numbers or rendered message text; the latest private import record is read only
-when a job is processed.
+when a job is processed. Interrupted processing jobs are conservatively marked
+`unknown` rather than retried, and pending reminders are cancelled once the
+screening date has started in Singapore.
 
 ## Current Structure
 
@@ -281,7 +283,7 @@ POST /api/formAPdfQueue
 
 The form `formKey` should be one of the canonical keys in `server/modules/forms/formRegistry.js`, such as `registration`, `triage`, `hsg`, or `doctorConsult`.
 
-`GET /api/patients/name-matches` is the preferred endpoint when resolving a patient by name. Patient names are not unique, so this endpoint returns all exact case-insensitive name matches with `queueNo`, `initials`, `age`, and `birthday` from `registrationForm.registrationQ3`. Use it instead of the older single-record `/api/patients/search?initials=...` flow when the user needs to choose the correct patient.
+`GET /api/patients/name-matches` is the preferred endpoint when resolving a patient by name. Patient names are not unique, so this endpoint matches case-insensitive token prefixes in any order and returns `queueNo`, `initials`, `age`, and `birthday` from `registrationForm.registrationQ3`. For example, `Lou` matches both `Lou J` and `J Lou`, but not `Malou J`. At least one search token must contain two characters, except that a single non-ASCII character is accepted. Use the birthday to choose the correct patient and use this endpoint instead of the older single-record `/api/patients/search?initials=...` flow.
 
 `GET /api/patients/:patientId/summary-report-data` returns the patient record plus all form documents needed by the frontend screening summary report in one request. Missing optional forms are returned as empty objects so report generation can continue with partial data. Use this endpoint instead of issuing one request per form from `SummaryForm.jsx`.
 

@@ -26,7 +26,7 @@ function createRepository(overrides = {}) {
     completeCheckIn: vi.fn().mockResolvedValue(true),
     repairCheckedInPrefill: vi.fn().mockResolvedValue(),
     releaseCheckIn: vi.fn().mockResolvedValue(),
-    searchAvailableByInitials: vi.fn().mockResolvedValue({
+    searchAvailableByName: vi.fn().mockResolvedValue({
       data: [createPrefill()],
       total: 1,
     }),
@@ -72,6 +72,8 @@ describe("preRegistrations.service", () => {
         initials: "Yeo Z W D",
         registrationSource: "pre-registration",
         createdBy: "volunteer@example.com",
+        stationEligibilityInputs: {},
+        stationProjectionRevision: 0,
       }),
     );
     expect(repository.completeCheckIn).toHaveBeenCalledWith(
@@ -79,6 +81,30 @@ describe("preRegistrations.service", () => {
       expect.any(String),
       101,
     );
+  });
+
+  it("uses normalized token search and rejects overly broad names", async () => {
+    const repository = createRepository();
+    const service = createPreRegistrationsService({
+      preRegistrationsRepository: repository,
+    });
+
+    await expect(service.search({ initials: "  Lou   J " })).resolves.toEqual(
+      expect.objectContaining({ status: 200 }),
+    );
+    expect(repository.searchAvailableByName).toHaveBeenCalledWith({
+      name: "lou j",
+      page: 1,
+      limit: 10,
+    });
+
+    await expect(service.search({ initials: "J" })).resolves.toEqual({
+      status: 400,
+      body: {
+        result: false,
+        error: "Enter at least 2 characters from the patient name",
+      },
+    });
   });
 
   it("returns an existing patient for an idempotent repeated check-in", async () => {

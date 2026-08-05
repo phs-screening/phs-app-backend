@@ -33,10 +33,13 @@ function createPreRegistrationsImporter({
     const summary = createSummary();
     const seenSourceKeys = new Set();
     const seenIdentityKeys = new Set();
+    const mappedRows = rows.map((rawResponse) => ({
+      rawResponse,
+      mapped: mapImportRow(rawResponse, { now }),
+    }));
 
-    for (const rawResponse of rows) {
+    for (const { rawResponse, mapped } of mappedRows) {
       summary.rowsRead += 1;
-      const mapped = mapImportRow(rawResponse, { now });
       const identityKey = duplicateKey(mapped);
       const duplicateInFile =
         seenSourceKeys.has(mapped.sourceRecordKey) ||
@@ -78,6 +81,9 @@ function createPreRegistrationsImporter({
       );
 
       if (duplicateInFile || !mapped.canCreatePrefill) {
+        await preRegistrationsRepository.withdrawAvailablePrefill(
+          rawImport._id,
+        );
         continue;
       }
 
@@ -86,7 +92,9 @@ function createPreRegistrationsImporter({
 
       if (
         existingPrefill &&
-        ["checked_in", "completed"].includes(existingPrefill.status) &&
+        ["checking_in", "checked_in", "completed"].includes(
+          existingPrefill.status,
+        ) &&
         existingPrefill.sourceContentHash !== mapped.contentHash
       ) {
         await preRegistrationsRepository.updateRawImportStatus(
@@ -121,6 +129,8 @@ function createPreRegistrationsImporter({
         await patientQueueRepository.getNextPatientQueueNo();
       await preRegistrationsRepository.upsertPrefill(rawImport._id, {
         queueNo,
+        status:
+          existingPrefill?.status === "withdrawn" ? "available" : undefined,
         registrationData: mapped.registrationData,
         lookup: mapped.lookup,
         nameMappingWarnings: mapped.nameMappingWarnings,

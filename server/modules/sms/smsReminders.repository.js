@@ -73,6 +73,29 @@ function createSmsRemindersRepository({ getDb }) {
       .toArray();
   }
 
+  async function markStaleProcessingUnknown(eventDate, staleBefore) {
+    const { reminders } = await collections();
+    const result = await reminders.updateMany(
+      {
+        eventDate,
+        status: "processing",
+        $or: [
+          { lockedAt: { $lt: staleBefore } },
+          { lockedAt: { $exists: false } },
+        ],
+      },
+      {
+        $set: {
+          status: "unknown",
+          lastErrorCode: "SMS_PROCESS_INTERRUPTED",
+          updatedAt: new Date(),
+        },
+        $unset: { lockToken: "", lockedAt: "" },
+      },
+    );
+    return result.modifiedCount;
+  }
+
   async function findReminderContext(rawImportId) {
     const { imports, prefills } = await collections();
     const [rawImport, prefill] = await Promise.all([
@@ -141,6 +164,7 @@ function createSmsRemindersRepository({ getDb }) {
     findReminderByKey,
     findReminderContext,
     finishReminder,
+    markStaleProcessingUnknown,
     releasePendingReminder,
     updatePendingReminder,
   };

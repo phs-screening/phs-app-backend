@@ -1,3 +1,5 @@
+const { buildNameTokenPrefixFilter } = require("../../utils/nameSearch");
+
 function createPreRegistrationsRepository({ getDb }) {
   function getDocument(result) {
     return result?.value || result;
@@ -85,15 +87,19 @@ function createPreRegistrationsRepository({ getDb }) {
           nameMappingWarnings: document.nameMappingWarnings,
           mappingIssues: document.mappingIssues,
           sourceContentHash: document.sourceContentHash,
+          ...(document.status ? { status: document.status } : {}),
           updatedAt: now,
         },
         $setOnInsert: {
           queueNo: document.queueNo,
           schemaVersion: 1,
-          status: "available",
+          ...(document.status ? {} : { status: "available" }),
           patientId: null,
           createdAt: now,
         },
+        ...(document.status === "available"
+          ? { $unset: { withdrawnAt: "" } }
+          : {}),
       },
       { upsert: true, returnDocument: "after" },
     );
@@ -101,10 +107,25 @@ function createPreRegistrationsRepository({ getDb }) {
     return getDocument(result);
   }
 
-  async function searchAvailableByInitials({ normalizedInitials, page, limit }) {
+  async function withdrawAvailablePrefill(rawImportId) {
+    const { prefills } = await getCollections();
+    const result = await prefills.updateOne(
+      { rawImportId, status: "available" },
+      {
+        $set: {
+          status: "withdrawn",
+          withdrawnAt: new Date(),
+          updatedAt: new Date(),
+        },
+      },
+    );
+    return result.modifiedCount === 1;
+  }
+
+  async function searchAvailableByName({ name, page, limit }) {
     const { prefills } = await getCollections();
     const filter = {
-      "lookup.normalizedInitials": normalizedInitials,
+      ...buildNameTokenPrefixFilter("lookup.normalizedInitials", name),
       status: { $in: ["available", "checking_in", "checked_in"] },
     };
     const skip = (page - 1) * limit;
@@ -241,10 +262,11 @@ function createPreRegistrationsRepository({ getDb }) {
     markCompletedByPatientId,
     releaseCheckIn,
     repairCheckedInPrefill,
-    searchAvailableByInitials,
+    searchAvailableByName,
     updateRawImportStatus,
     upsertPrefill,
     upsertRawImport,
+    withdrawAvailablePrefill,
   };
 }
 

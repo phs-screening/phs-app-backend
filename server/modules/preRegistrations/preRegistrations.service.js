@@ -3,6 +3,8 @@ const {
   calculateAge,
   normalizeText,
 } = require("./preRegistrations.mapper");
+const { STATION_PROJECTION_VERSION } = require("../stations/stationProjection");
+const { validateNameSearch } = require("../../utils/nameSearch");
 
 const CHECK_IN_STALE_AFTER_MS = 2 * 60 * 1000;
 const MAX_PAGE_LIMIT = 20;
@@ -75,18 +77,18 @@ function createPreRegistrationsService({ preRegistrationsRepository }) {
   }
 
   async function search(query = {}) {
-    const initials = String(query.initials ?? "").trim();
-    if (!initials) {
+    const nameSearch = validateNameSearch(query.initials);
+    if (!nameSearch.valid) {
       return {
         status: 400,
-        body: { result: false, error: "Patient initials are required" },
+        body: { result: false, error: nameSearch.error },
       };
     }
 
     const pagination = parsePagination(query);
     const { data, total } =
-      await preRegistrationsRepository.searchAvailableByInitials({
-        normalizedInitials: normalizeText(initials),
+      await preRegistrationsRepository.searchAvailableByName({
+        name: normalizeText(nameSearch.query),
         ...pagination,
       });
 
@@ -119,6 +121,9 @@ function createPreRegistrationsService({ preRegistrationsRepository }) {
       registrationSource: "pre-registration",
       createdAt: new Date(),
       createdBy: user?.email,
+      stationEligibilityInputs: {},
+      stationProjectionVersion: STATION_PROJECTION_VERSION,
+      stationProjectionRevision: 0,
     };
   }
 

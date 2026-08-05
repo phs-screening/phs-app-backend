@@ -8,6 +8,7 @@ const REMINDER_TYPE = "screening_reminder";
 const TEMPLATE_KEY = "screeningReminder";
 const HALT_STATUS_CODES = new Set(["101", "102", "103", "108"]);
 const UNKNOWN_STATUS_CODES = new Set(["888", "999"]);
+const PROCESSING_STALE_AFTER_MS = 5 * 60 * 1000;
 
 function parseEventDate(value) {
   const text = String(value ?? "").trim();
@@ -29,6 +30,10 @@ function parseEventDate(value) {
 function calculateScheduledFor(eventDate, reminderHourSgt) {
   const [year, month, day] = eventDate.split("-").map(Number);
   return new Date(Date.UTC(year, month - 1, day - 1, reminderHourSgt - 8));
+}
+
+function calculateEventStart(eventDate) {
+  return new Date(`${eventDate}T00:00:00+08:00`);
 }
 
 function formatAppointmentDate(eventDate) {
@@ -64,6 +69,8 @@ function createSendSummary() {
     skippedByTestAllowlist: 0,
     claimedElsewhere: 0,
     notDue: 0,
+    recoveredUnknown: 0,
+    eventStarted: false,
     halted: false,
     balance: null,
   };
@@ -106,6 +113,13 @@ function createSmsRemindersService({
     now = new Date(),
   }) {
     const normalizedEventDate = parseEventDate(eventDate);
+    if (now >= calculateEventStart(normalizedEventDate)) {
+      const error = new Error(
+        "Cannot plan reminders after the event has started",
+      );
+      error.code = "SMS_EVENT_STARTED";
+      throw error;
+    }
     const summary = createSummary();
     const candidates = await smsRemindersRepository.findPlanningCandidates();
 
@@ -114,6 +128,9 @@ function createSmsRemindersService({
       const { context, issue } = prepareContext(candidate);
       if (
         issue ||
+        !context?.rawImportId ||
+        !Number.isInteger(context?.queueNo) ||
+        context.queueNo <= 0 ||
         !context?.eventDate ||
         !context?.appointmentTime ||
         !context?.language
@@ -232,12 +249,7 @@ function createSmsRemindersService({
     now = new Date(),
   }) {
     const normalizedEventDate = parseEventDate(eventDate);
-    const jobs = await smsRemindersRepository.findPendingReminders(
-      normalizedEventDate,
-      limit,
-    );
     const summary = createSendSummary();
-    summary.pending = jobs.length;
 
     if (!dryRun && smsConfig.mode === "disabled") {
       const error = new Error("SMS sending is disabled");
@@ -245,15 +257,53 @@ function createSmsRemindersService({
       throw error;
     }
 
-    const actionableJobs = dryRun
-      ? jobs
-      : jobs.filter((job) => {
-          if (job.scheduledFor > now) {
-            summary.notDue += 1;
-            return false;
-          }
-          return true;
-        });
+    if (!dryRun) {
+      summary.recoveredUnknown =
+        await smsRemindersRepository.markStaleProcessingUnknown(
+          normalizedEventDate,
+          new Date(now.getTime() - PROCESSING_STALE_AFTER_MS),
+        );
+    }
+
+    const jobs = await smsRemindersRepository.findPendingReminders(
+      normalizedEventDate,
+      limit,
+    );
+    summary.pending = jobs.length;
+
+    if (now >= calculateEventStart(normalizedEventDate)) {
+      summary.eventStarted = true;
+      summary.cancelled = jobs.length;
+      if (!dryRun) {
+        for (const job of jobs) {
+          await smsRemindersRepository.cancelPendingReminder(
+            job._id,
+            "SMS_EVENT_STARTED",
+          );
+        }
+      }
+      return summary;
+    }
+
+    const actionableJobs = [];
+    for (const job of jobs) {
+      if (
+        !(job.scheduledFor instanceof Date) ||
+        Number.isNaN(job.scheduledFor.getTime())
+      ) {
+        summary.cancelled += 1;
+        if (!dryRun) {
+          await smsRemindersRepository.cancelPendingReminder(
+            job._id,
+            "SMS_SCHEDULE_INVALID",
+          );
+        }
+      } else if (!dryRun && job.scheduledFor > now) {
+        summary.notDue += 1;
+      } else {
+        actionableJobs.push(job);
+      }
+    }
 
     if (!dryRun && actionableJobs.length === 0) return summary;
 
@@ -337,7 +387,7 @@ function createSmsRemindersService({
           {
             providerMessageId: result.providerMessageId,
             providerStatusCode: result.statusCode,
-            acceptedAt: new Date(),
+            acceptedAt: now,
           },
         );
         summary.accepted += 1;

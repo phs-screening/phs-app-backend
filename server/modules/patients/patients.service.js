@@ -4,6 +4,7 @@ const {
   STATION_PROJECTION_VERSION,
   sanitizePatient,
 } = require("../stations/stationProjection");
+const { validateNameSearch } = require("../../utils/nameSearch");
 
 const summaryReportFormKeys = {
   registration: "registration",
@@ -157,18 +158,18 @@ function createPatientsService({ patientsRepository, patientQueueRepository }) {
   }
 
   async function getPatientNameMatches(query) {
-    const initials = String(query.initials ?? "").trim();
-    if (!initials) {
+    const nameSearch = validateNameSearch(query.initials);
+    if (!nameSearch.valid) {
       return {
         status: 400,
-        body: { result: false, error: "Patient name is required" },
+        body: { result: false, error: nameSearch.error },
       };
     }
 
     const options = parsePatientNamesPagination(query);
     const { data, total } =
       await patientsRepository.findPatientMatchesByInitials({
-        initials,
+        initials: nameSearch.query,
         page: options.page,
         limit: options.limit,
       });

@@ -76,6 +76,7 @@ function repository(overrides = {}) {
       prefill: prefill(),
     }),
     finishReminder: vi.fn().mockResolvedValue(true),
+    markStaleProcessingUnknown: vi.fn().mockResolvedValue(0),
     releasePendingReminder: vi.fn().mockResolvedValue(true),
     updatePendingReminder: vi.fn().mockResolvedValue(true),
     ...overrides,
@@ -340,5 +341,95 @@ describe("smsReminders.service", () => {
     ).resolves.toMatchObject({ notDue: 1, eligible: 0 });
     expect(client.checkBalance).not.toHaveBeenCalled();
     expect(client.sendSms).not.toHaveBeenCalled();
+  });
+
+  it("moves stale processing jobs to unknown before reading pending work", async () => {
+    const {
+      service: reminders,
+      repository: repo,
+      client,
+    } = service({
+      repositoryOverrides: {
+        markStaleProcessingUnknown: vi.fn().mockResolvedValue(2),
+      },
+    });
+
+    await expect(
+      reminders.sendReminders({
+        eventDate: "2026-08-23",
+        now: new Date("2026-08-22T03:00:00.000Z"),
+      }),
+    ).resolves.toMatchObject({ recoveredUnknown: 2, pending: 0 });
+    expect(repo.markStaleProcessingUnknown).toHaveBeenCalledWith(
+      "2026-08-23",
+      new Date("2026-08-22T02:55:00.000Z"),
+    );
+    expect(client.checkBalance).not.toHaveBeenCalled();
+  });
+
+  it("cancels pending jobs after the screening date starts", async () => {
+    const {
+      service: reminders,
+      repository: repo,
+      client,
+    } = service({
+      repositoryOverrides: {
+        findPendingReminders: vi.fn().mockResolvedValue([pendingJob()]),
+      },
+    });
+
+    await expect(
+      reminders.sendReminders({
+        eventDate: "2026-08-23",
+        now: new Date("2026-08-22T16:00:00.000Z"),
+      }),
+    ).resolves.toMatchObject({
+      eventStarted: true,
+      cancelled: 1,
+      accepted: 0,
+    });
+    expect(repo.cancelPendingReminder).toHaveBeenCalledWith(
+      "sms-1",
+      "SMS_EVENT_STARTED",
+    );
+    expect(client.checkBalance).not.toHaveBeenCalled();
+  });
+
+  it("cancels a malformed schedule without contacting the provider", async () => {
+    const {
+      service: reminders,
+      repository: repo,
+      client,
+    } = service({
+      repositoryOverrides: {
+        findPendingReminders: vi
+          .fn()
+          .mockResolvedValue([pendingJob({ scheduledFor: null })]),
+      },
+    });
+
+    await expect(
+      reminders.sendReminders({
+        eventDate: "2026-08-23",
+        now: new Date("2026-08-22T03:00:00.000Z"),
+      }),
+    ).resolves.toMatchObject({ cancelled: 1, eligible: 0 });
+    expect(repo.cancelPendingReminder).toHaveBeenCalledWith(
+      "sms-1",
+      "SMS_SCHEDULE_INVALID",
+    );
+    expect(client.checkBalance).not.toHaveBeenCalled();
+  });
+
+  it("does not plan reminders after the screening date starts", async () => {
+    const { service: reminders, repository: repo } = service();
+
+    await expect(
+      reminders.planReminders({
+        eventDate: "2026-08-23",
+        now: new Date("2026-08-22T16:00:00.000Z"),
+      }),
+    ).rejects.toMatchObject({ code: "SMS_EVENT_STARTED" });
+    expect(repo.findPlanningCandidates).not.toHaveBeenCalled();
   });
 });

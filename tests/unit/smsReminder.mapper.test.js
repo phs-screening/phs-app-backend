@@ -42,4 +42,11 @@ describe("smsReminder.mapper", () => {
       "16:30",
     );
   });
+
+  it("rejects impossible booking dates and malformed 12-hour times", () => {
+    expect(parseBookingDate("31/02/2026")).toBeNull();
+    expect(parseBookingDate("2026-13-01")).toBeNull();
+    expect(parseBookingTime("13:30 PM")).toBeNull();
+    expect(parseBookingTime("00:30 AM")).toBeNull();
+  });
 });
