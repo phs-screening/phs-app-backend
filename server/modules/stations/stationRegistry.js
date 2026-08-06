@@ -22,6 +22,7 @@ const activeStationOrder = [
   "mentalhealth",
   "doctorsconsult",
   "screeningreview",
+  "ltfu",
 ];
 
 const stationRegistry = {
@@ -259,10 +260,22 @@ const stationRegistry = {
     active: true,
     isComplete: (record) =>
       activeStationOrder
-        .filter((stationKey) => stationKey !== "screeningreview")
+        .filter(
+          (stationKey) =>
+            stationKey !== "screeningreview" && stationKey !== "ltfu",
+        )
         .every((stationKey) =>
           isStationComplete(record, stationRegistry[stationKey]),
         ),
+  },
+  ltfu: {
+    key: "ltfu",
+    displayName: "LTFU",
+    eligibilityName: "Long Term Follow Up",
+    route: "ltfu",
+    requiredForms: ["ltfu"],
+    eligibilityRule: "ltfu",
+    active: true,
   },
 };
 
