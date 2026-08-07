@@ -71,6 +71,12 @@ const formRegistry = {
     collection: "mentalHealthForm",
     patientMarker: "mentalHealthForm",
   },
+  arthritis: {
+    key: "arthritis",
+    title: "Arthritis",
+    collection: "arthritisForm",
+    patientMarker: "arthritisForm",
+  },
   ltfu: {
     key: "ltfu",
     title: "LTFU",

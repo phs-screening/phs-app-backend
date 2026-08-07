@@ -1,5 +1,6 @@
 const createEventDashboardRoutes = require("../../server/modules/eventDashboard/eventDashboard.routes");
 const createPrintQueueRoutes = require("../../server/modules/printQueues/printQueues.routes");
+const createPreRegistrationsRoutes = require("../../server/modules/preRegistrations/preRegistrations.routes");
 const createProfilesRoutes = require("../../server/modules/profiles/profiles.routes");
 const createQueuesRoutes = require("../../server/modules/queues/queues.routes");
 
@@ -96,6 +97,33 @@ describe("non-form routes", () => {
       { path: "/formAPdfQueue", methods: ["post"], handlers: 2 },
       { path: "/formAPdfQueue/:id", methods: ["patch"], handlers: 2 },
       { path: "/formAPdfQueue/:id", methods: ["delete"], handlers: 2 },
+    ]);
+  });
+
+  it("registers pre-registration routes behind authentication", () => {
+    const routes = registeredRoutes(createPreRegistrationsRoutes(createDeps()));
+
+    expect(routes).toEqual([
+      {
+        path: "/pre-registrations/by-queue/:queueNo",
+        methods: ["get"],
+        handlers: 2,
+      },
+      {
+        path: "/pre-registrations/search",
+        methods: ["get"],
+        handlers: 2,
+      },
+      {
+        path: "/pre-registrations/:queueNo/check-in",
+        methods: ["post"],
+        handlers: 2,
+      },
+      {
+        path: "/patients/:patientId/pre-registration-prefill",
+        methods: ["get"],
+        handlers: 2,
+      },
     ]);
   });
 });

@@ -83,6 +83,95 @@ npm run seed:sample-patients -- --count=100
 
 The seed script also advances the patient queue number counter so future registrations do not collide with inserted sample patients.
 
+## Pre-Registration Import
+
+Run database setup before the first live import so the staging collections have
+their unique indexes and the queue counter accounts for reserved queue numbers.
+
+Validate an Excel export without writing to MongoDB:
+
+```bash
+npm run prereg:import -- --file "path/to/responses.xlsx" --dry-run
+```
+
+Import the workbook after reviewing the summary:
+
+```bash
+npm run prereg:import -- --file "path/to/responses.xlsx"
+```
+
+The complete FormSG response is stored in `preRegistrationImports`. The export
+must include a `Booking ID`, `Response ID`, or `Submission ID`; this stable
+identifier prevents duplicate queue numbers when a workbook is imported again.
+`preRegistrationPrefill` contains only Registration prefill fields, lookup
+metadata, mapping warnings, and the reserved queue number. Neither collection is
+registered as a generic screening form, and the authenticated lookup endpoints
+return only explicitly sanitized fields.
+
+## SMS Reminders
+
+SMS sending is disabled by default. Run database setup after deploying this
+feature to create the `smsReminders` indexes:
+
+```bash
+npm run db:setup
+```
+
+Configure the reminder process with:
+
+```bash
+SMS_MODE=disabled
+GT_NOTIFY_USERNAME=...
+GT_NOTIFY_PASSWORD=...
+GT_NOTIFY_SENDER=...
+SMS_TEST_RECIPIENT_ALLOWLIST=6591234567,6581234567
+SMS_REMINDER_HOUR_SGT=10
+SMS_REQUEST_TIMEOUT_MS=10000
+```
+
+`SMS_MODE` must be `disabled`, `test`, or `live`. Provider credentials are not
+required while it is `disabled`. In `test` mode, only recipients in
+`SMS_TEST_RECIPIENT_ALLOWLIST` can be sent a message. `GT_NOTIFY_PASSWORD` is
+hashed with SHA-256 in memory because the provider requires the hash in its API
+request; alternatively, configure the 64-character hash directly as
+`GT_NOTIFY_PASSWORD_HASH` and omit `GT_NOTIFY_PASSWORD`.
+
+Reminder text is intentionally blocked until approved. Add each approved
+language message in `server/modules/sms/sms.templates.js`, set a character limit,
+change the template version, and set `approved: true`. Messages may use the
+`{{date}}`, `{{time}}`, and `{{queueNo}}` placeholders. Planning remains blocked
+if any selected language is missing or unapproved.
+
+Preview eligible records without writing reminder jobs:
+
+```bash
+npm run sms:plan -- --event-date 2026-08-23 --dry-run
+```
+
+After reviewing the summary, create idempotent reminder jobs and preview them:
+
+```bash
+npm run sms:plan -- --event-date 2026-08-23
+npm run sms:send -- --event-date 2026-08-23 --dry-run --limit 100
+```
+
+Start with `SMS_MODE=test` and an internal allowlist. When provider configuration,
+consent rules, all four messages, and the sender name have been approved, use
+`SMS_MODE=live` and process a controlled batch:
+
+```bash
+npm run sms:send -- --event-date 2026-08-23 --limit 100
+```
+
+Running the send command repeatedly processes further pending jobs; it does not
+resend jobs already accepted, failed, cancelled, or marked with an unknown
+provider outcome. A provider `accepted` response means the request was accepted,
+not that handset delivery was confirmed. The job collection does not store phone
+numbers or rendered message text; the latest private import record is read only
+when a job is processed. Interrupted processing jobs are conservatively marked
+`unknown` rather than retried, and pending reminders are cancelled once the
+screening date has started in Singapore.
+
 ## Current Structure
 
 ```text
@@ -194,7 +283,7 @@ POST /api/formAPdfQueue
 
 The form `formKey` should be one of the canonical keys in `server/modules/forms/formRegistry.js`, such as `registration`, `triage`, `hsg`, or `doctorConsult`.
 
-`GET /api/patients/name-matches` is the preferred endpoint when resolving a patient by name. Patient names are not unique, so this endpoint returns all exact case-insensitive name matches with `queueNo`, `initials`, `age`, and `birthday` from `registrationForm.registrationQ3`. Use it instead of the older single-record `/api/patients/search?initials=...` flow when the user needs to choose the correct patient.
+`GET /api/patients/name-matches` is the preferred endpoint when resolving a patient by name. Patient names are not unique, so this endpoint matches case-insensitive token prefixes in any order and returns `queueNo`, `initials`, `age`, and `birthday` from `registrationForm.registrationQ3`. For example, `Lou` matches both `Lou J` and `J Lou`, but not `Malou J`. At least one search token must contain two characters, except that a single non-ASCII character is accepted. Use the birthday to choose the correct patient and use this endpoint instead of the older single-record `/api/patients/search?initials=...` flow.
 
 `GET /api/patients/:patientId/summary-report-data` returns the patient record plus all form documents needed by the frontend screening summary report in one request. Missing optional forms are returned as empty objects so report generation can continue with partial data. Use this endpoint instead of issuing one request per form from `SummaryForm.jsx`.
 

@@ -1,12 +1,17 @@
 const express = require('express');
 const createPatientsController = require('./patients.controller');
 const createPatientsRepository = require('./patients.repository');
+const createPatientQueueRepository = require('./patientQueue.repository');
 const createPatientsService = require('./patients.service');
 
 function createPatientsRoutes({ getDb, authenticateToken }) {
   const router = express.Router();
   const patientsRepository = createPatientsRepository({ getDb });
-  const patientsService = createPatientsService({ patientsRepository });
+  const patientQueueRepository = createPatientQueueRepository({ getDb });
+  const patientsService = createPatientsService({
+    patientsRepository,
+    patientQueueRepository,
+  });
   const patientsController = createPatientsController({ patientsService });
 
   router.post('/patients', authenticateToken, patientsController.createPatient);

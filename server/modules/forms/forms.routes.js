@@ -8,20 +8,31 @@ const createPrintQueuesRepository = require("../printQueues/printQueues.reposito
 const createPrintQueuesService = require("../printQueues/printQueues.service");
 const createStationsRepository = require("../stations/stations.repository");
 const createStationsService = require("../stations/stations.service");
+const createPreRegistrationsRepository = require("../preRegistrations/preRegistrations.repository");
 
 function createFormsRoutes({ getDb, authenticateToken }) {
   const router = express.Router();
   const formsRepository = createFormsRepository({ getDb });
   const formARepository = createFormARepository({ getDb });
   const printQueuesRepository = createPrintQueuesRepository({ getDb });
-  const printQueuesService = createPrintQueuesService({ printQueuesRepository });
-  const formAService = createFormAService({ formARepository, printQueuesService });
+  const printQueuesService = createPrintQueuesService({
+    printQueuesRepository,
+  });
+  const formAService = createFormAService({
+    formARepository,
+    printQueuesService,
+  });
   const stationsRepository = createStationsRepository({ getDb });
   const stationsService = createStationsService({ stationsRepository });
+  const preRegistrationsRepository = createPreRegistrationsRepository({
+    getDb,
+  });
   const formsService = createFormsService({
     formsRepository,
     onFormSubmitted: stationsService.persistPatientStationCounts,
     onFormAReadyCheck: formAService.maybeEnqueueFormA,
+    onRegistrationSubmitted:
+      preRegistrationsRepository.markCompletedByPatientId,
     preparePatientProjection: stationsService.ensurePatientProjection,
   });
   const formsController = createFormsController({ formsService });

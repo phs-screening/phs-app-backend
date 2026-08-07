@@ -18,6 +18,26 @@ describe("station registry", () => {
     expect(stationKeys[screeningReviewIndex + 1]).toBe("ltfu");
   });
 
+  it("places Arthritis between Mental Health and Doctor's Consult", () => {
+    const stationKeys = getStationDefinitions({ activeOnly: true }).map(
+      (station) => station.key,
+    );
+    const mentalHealthIndex = stationKeys.indexOf("mentalhealth");
+
+    expect(stationKeys[mentalHealthIndex + 1]).toBe("arthritis");
+    expect(stationKeys[mentalHealthIndex + 2]).toBe("doctorsconsult");
+    expect(stationRegistry.arthritis).toMatchObject({
+      route: "arthritis",
+      requiredForms: ["arthritis"],
+      eligibilityRule: "arthritis",
+      active: true,
+    });
+    expect(getFormDefinition("arthritis")).toMatchObject({
+      collection: "arthritisForm",
+      patientMarker: "arthritisForm",
+    });
+  });
+
   it("registers LTFU with its form and existing eligibility rule", () => {
     expect(stationRegistry.ltfu).toMatchObject({
       displayName: "LTFU",
