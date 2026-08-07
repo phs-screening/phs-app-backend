@@ -21,20 +21,20 @@ const HEADER_PREFIXES = {
 };
 
 const RACE_VALUES = {
-  chinese: "Chinese åŽè£”",
-  malay: "Malay å·«è£”",
-  indian: "Indian å°è£”",
-  eurasian: "Eurasian æ¬§äºšè£”",
-  others: "Others å…¶ä»–",
-  other: "Others å…¶ä»–",
+  chinese: "Chinese 华裔",
+  malay: "Malay 巫裔",
+  indian: "Indian 印裔",
+  eurasian: "Eurasian 欧亚裔",
+  others: "Others 其他",
+  other: "Others 其他",
 };
 
 const NATIONALITY_VALUES = {
-  "singapore citizen": "Singapore Citizen æ–°åŠ å¡å…¬æ°‘",
-  singaporean: "Singapore Citizen æ–°åŠ å¡å…¬æ°‘",
-  "singapore permanent resident": "Singapore Permanent Resident (PR) \næ–°åŠ å¡æ°¸ä¹…å±…æ°‘",
-  "singapore permanent resident (pr)": "Singapore Permanent Resident (PR) \næ–°åŠ å¡æ°¸ä¹…å±…æ°‘",
-  pr: "Singapore Permanent Resident (PR) \næ–°åŠ å¡æ°¸ä¹…å±…æ°‘",
+  "singapore citizen": "Singapore Citizen 新加坡公民",
+  singaporean: "Singapore Citizen 新加坡公民",
+  "singapore permanent resident": "Singapore Permanent Resident (PR) \n新加坡永久居民",
+  "singapore permanent resident (pr)": "Singapore Permanent Resident (PR) \n新加坡永久居民",
+  pr: "Singapore Permanent Resident (PR) \n新加坡永久居民",
 };
 
 function cleanText(value) {

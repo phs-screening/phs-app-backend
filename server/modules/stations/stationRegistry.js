@@ -20,6 +20,7 @@ const activeStationOrder = [
   "audio",
   "socialservice",
   "mentalhealth",
+  "arthritis",
   "doctorsconsult",
   "screeningreview",
   "ltfu",
@@ -241,6 +242,15 @@ const stationRegistry = {
     route: "mentalhealth",
     requiredForms: ["mentalHealth"],
     eligibilityRule: "mentalHealth",
+    active: true,
+  },
+  arthritis: {
+    key: "arthritis",
+    displayName: "Arthritis",
+    eligibilityName: "Arthritis",
+    route: "arthritis",
+    requiredForms: ["arthritis"],
+    eligibilityRule: "arthritis",
     active: true,
   },
   doctorsconsult: {

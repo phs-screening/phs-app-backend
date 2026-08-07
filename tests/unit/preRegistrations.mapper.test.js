@@ -46,6 +46,8 @@ describe("preRegistrations.mapper", () => {
         registrationQ2: "Yeo Z W D",
         registrationQ4: 61,
         registrationQ5: "Male",
+        registrationQ6: "Chinese 华裔",
+        registrationQ7: "Singapore Citizen 新加坡公民",
         registrationQ11: "No",
         registrationQ12: "CHAS Green",
         registrationQ13: "Pioneer generation card holder",
