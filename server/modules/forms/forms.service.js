@@ -14,6 +14,7 @@ function createFormsService({
   formsRepository,
   onFormSubmitted,
   onFormAReadyCheck,
+  onRegistrationSubmitted,
   preparePatientProjection,
 }) {
   async function recalculateStationCounts(patient) {
@@ -47,8 +48,25 @@ function createFormsService({
     }
   }
 
+  async function maybeCompletePreRegistration(formCollection, patientId) {
+    if (formCollection !== "registrationForm" || !onRegistrationSubmitted) {
+      return;
+    }
+
+    try {
+      await withRetry(() => onRegistrationSubmitted(patientId));
+    } catch (e) {
+      console.error(
+        `Failed to complete pre-registration for patient ${patientId}:`,
+        e,
+      );
+    }
+  }
+
   async function ensureProjection(patient) {
-    return preparePatientProjection ? preparePatientProjection(patient) : patient;
+    return preparePatientProjection
+      ? preparePatientProjection(patient)
+      : patient;
   }
 
   function buildPatientUpdate(formCollection, patientId, payload) {
@@ -66,7 +84,8 @@ function createFormsService({
 
     const eligibilityInput = extractEligibilityInput(formCollection, payload);
     if (eligibilityInput) {
-      set[`stationEligibilityInputs.${eligibilityInput.alias}`] = eligibilityInput.data;
+      set[`stationEligibilityInputs.${eligibilityInput.alias}`] =
+        eligibilityInput.data;
       set.stationProjectionVersion = STATION_PROJECTION_VERSION;
     }
 
@@ -84,9 +103,12 @@ function createFormsService({
       ),
     );
     if (!updatedPatient) {
-      throw new Error(`Patient ${patientId} disappeared while saving ${formCollection}`);
+      throw new Error(
+        `Patient ${patientId} disappeared while saving ${formCollection}`,
+      );
     }
 
+    await maybeCompletePreRegistration(formCollection, patientId);
     await recalculateStationCounts(updatedPatient);
     await maybeEnqueueFormA(updatedPatient);
     return updatedPatient;
@@ -119,9 +141,14 @@ function createFormsService({
       };
     }
 
-    const projectionNeededRepair = Boolean(patient.stationProjectionNeedsRepair);
+    const projectionNeededRepair = Boolean(
+      patient.stationProjectionNeedsRepair,
+    );
     patient = await ensureProjection(patient);
-    const payloadWithDerivations = applyFormDerivations(formCollection, payload);
+    const payloadWithDerivations = applyFormDerivations(
+      formCollection,
+      payload,
+    );
 
     if (patient[formCollection] === undefined) {
       try {
@@ -147,12 +174,7 @@ function createFormsService({
         return duplicateSubmissionResult();
       }
 
-      await finalizeFormSave(
-        formCollection,
-        patientId,
-        payloadWithDerivations,
-      );
-
+      await finalizeFormSave(formCollection, patientId, payloadWithDerivations);
       return { status: 200, body: { result: true } };
     }
 
@@ -269,11 +291,19 @@ function createFormsService({
 
     let patient = await formsRepository.findPatientByQueueNo(id);
     if (!patient) {
-      return { status: 404, body: { result: false, error: "Patient not found" } };
+      return {
+        status: 404,
+        body: { result: false, error: "Patient not found" },
+      };
     }
     patient = await ensureProjection(patient);
 
-    await formsRepository.upsertFormDocument(form, id, parsedWithDerivations, user.email);
+    await formsRepository.upsertFormDocument(
+      form,
+      id,
+      parsedWithDerivations,
+      user.email,
+    );
     await finalizeFormSave(form, id, parsedWithDerivations);
 
     return { status: 200, body: { result: true } };

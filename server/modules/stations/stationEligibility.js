@@ -2,7 +2,7 @@
 // deploy/startup, the server recomputes every patient's cached station counts
 // once so the Event Dashboard reflects the new rules. See eligibilityCacheSync.js.
 // (Form A / the Eligibility page always compute live, so they never need this.)
-const ELIGIBILITY_RULES_VERSION = 2;
+const ELIGIBILITY_RULES_VERSION = 3;
 
 const eligibilityRules = {
   healthierSg: ({ reg = {} }) => reg?.registrationQ11 !== "Yes",
@@ -77,6 +77,8 @@ const eligibilityRules = {
     return phq2 >= 3 || gad2 >= 2 || suicidalIdeation || phq?.PHQ11 === "Yes";
   },
 
+  arthritis: () => true,
+
   mammobus: ({ reg = {} }) => reg.registrationQ19 === "Yes",
 
   // HPV testing: women aged >= 25 who have ever had sexual intercourse (GYNAE14),
@@ -95,8 +97,8 @@ const eligibilityRules = {
   // Vaccination: Singapore citizens who are due for AND interested in at least one
   // vaccine. Each vaccine is a received?/interested? pair — PMHXVAX1+2 (influenza),
   // PMHXVAX3+4 (pneumococcal), PMHXVAX5+6 (shingles); "Unsure" counts as not
-  // received. Influenza applies to everyone; pneumococcal only to age > 65;
-  // shingles only to age > 50. The PMHXVAX fields are collected in the
+  // received. Influenza applies to everyone; pneumococcal only to age >= 65;
+  // shingles only to age >= 60. The PMHXVAX fields are collected in the
   // History-Taking PMHx form (hxNssForm), so they come from `pmhx`.
   vaccination: ({ reg = {}, pmhx = {} }) => {
     const isCitizen = reg?.registrationQ7?.startsWith("Singapore Citizen");
@@ -108,9 +110,9 @@ const eligibilityRules = {
       (received === "No" || received === "Unsure") && interested === "Yes";
     const flu = dueAndInterested(pmhx?.PMHXVAX1, pmhx?.PMHXVAX2);
     const pneumococcal =
-      age > 65 && dueAndInterested(pmhx?.PMHXVAX3, pmhx?.PMHXVAX4);
+      age >= 65 && dueAndInterested(pmhx?.PMHXVAX3, pmhx?.PMHXVAX4);
     const shingles =
-      age > 50 && dueAndInterested(pmhx?.PMHXVAX5, pmhx?.PMHXVAX6);
+      age >= 60 && dueAndInterested(pmhx?.PMHXVAX5, pmhx?.PMHXVAX6);
     return flu || pneumococcal || shingles;
   },
 
@@ -181,6 +183,7 @@ const eligibilityRows = [
   { name: "Oral Health", rule: "oralHealth" },
   { name: "Social Services", rule: "socialServices" },
   { name: "Mental Health", rule: "mentalHealth" },
+  { name: "Arthritis", rule: "arthritis" },
   { name: "Mammobus", rule: "mammobus" },
   { name: "HPV On-Site Testing", rule: "hpv" },
   { name: "Audiometry", rule: "audiometry" },

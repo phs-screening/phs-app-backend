@@ -3,12 +3,46 @@ const createPatientsService = require("../../server/modules/patients/patients.se
 function createPatientsRepository(overrides = {}) {
   return {
     findPatientByQueueNo: vi.fn().mockResolvedValue({ queueNo: 12 }),
+    findPatientMatchesByInitials: vi.fn().mockResolvedValue({
+      data: [],
+      total: 0,
+    }),
     findSummaryReportForms: vi.fn().mockResolvedValue({ scoliosis: {} }),
     ...overrides,
   };
 }
 
 describe("patients.service", () => {
+  it("passes a normalized token search to the repository", async () => {
+    const patientsRepository = createPatientsRepository();
+    const service = createPatientsService({ patientsRepository });
+
+    await expect(
+      service.getPatientNameMatches({ initials: "  Lou   J " }),
+    ).resolves.toEqual(expect.objectContaining({ status: 200 }));
+    expect(
+      patientsRepository.findPatientMatchesByInitials,
+    ).toHaveBeenCalledWith({ initials: "Lou J", page: 1, limit: 20 });
+  });
+
+  it("rejects a single-character-only name search", async () => {
+    const patientsRepository = createPatientsRepository();
+    const service = createPatientsService({ patientsRepository });
+
+    await expect(
+      service.getPatientNameMatches({ initials: "A B" }),
+    ).resolves.toEqual({
+      status: 400,
+      body: {
+        result: false,
+        error: "Enter at least 2 characters from the patient name",
+      },
+    });
+    expect(
+      patientsRepository.findPatientMatchesByInitials,
+    ).not.toHaveBeenCalled();
+  });
+
   it("does not expose internal station projection fields", async () => {
     const patientsRepository = createPatientsRepository({
       findPatientByQueueNo: vi.fn().mockResolvedValue({
@@ -38,7 +72,10 @@ describe("patients.service", () => {
     const patientsRepository = createPatientsRepository({
       findSummaryReportForms: vi.fn().mockResolvedValue({ hxOsa }),
     });
-    const service = createPatientsService({ patientsRepository });
+    const service = createPatientsService({
+      patientsRepository,
+      patientQueueRepository: {},
+    });
 
     const result = await service.getSummaryReportData(12);
 
@@ -62,7 +99,10 @@ describe("patients.service", () => {
     const patientsRepository = createPatientsRepository({
       findSummaryReportForms: vi.fn().mockResolvedValue({ scoliosis }),
     });
-    const service = createPatientsService({ patientsRepository });
+    const service = createPatientsService({
+      patientsRepository,
+      patientQueueRepository: {},
+    });
 
     const result = await service.getSummaryReportData(12);
 
@@ -79,7 +119,10 @@ describe("patients.service", () => {
 
   it("returns an empty scoliosis object when the form is missing", async () => {
     const patientsRepository = createPatientsRepository();
-    const service = createPatientsService({ patientsRepository });
+    const service = createPatientsService({
+      patientsRepository,
+      patientQueueRepository: {},
+    });
 
     const result = await service.getSummaryReportData(12);
 

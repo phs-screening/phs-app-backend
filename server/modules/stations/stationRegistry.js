@@ -20,8 +20,10 @@ const activeStationOrder = [
   "audio",
   "socialservice",
   "mentalhealth",
+  "arthritis",
   "doctorsconsult",
   "screeningreview",
+  "ltfu",
 ];
 
 const stationRegistry = {
@@ -242,6 +244,15 @@ const stationRegistry = {
     eligibilityRule: "mentalHealth",
     active: true,
   },
+  arthritis: {
+    key: "arthritis",
+    displayName: "Arthritis",
+    eligibilityName: "Arthritis",
+    route: "arthritis",
+    requiredForms: ["arthritis"],
+    eligibilityRule: "arthritis",
+    active: true,
+  },
   doctorsconsult: {
     key: "doctorsconsult",
     displayName: "Doctor's Consult",
@@ -259,10 +270,22 @@ const stationRegistry = {
     active: true,
     isComplete: (record) =>
       activeStationOrder
-        .filter((stationKey) => stationKey !== "screeningreview")
+        .filter(
+          (stationKey) =>
+            stationKey !== "screeningreview" && stationKey !== "ltfu",
+        )
         .every((stationKey) =>
           isStationComplete(record, stationRegistry[stationKey]),
         ),
+  },
+  ltfu: {
+    key: "ltfu",
+    displayName: "LTFU",
+    eligibilityName: "Long Term Follow Up",
+    route: "ltfu",
+    requiredForms: ["ltfu"],
+    eligibilityRule: "ltfu",
+    active: true,
   },
 };
 

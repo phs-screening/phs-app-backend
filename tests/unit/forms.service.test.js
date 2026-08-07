@@ -28,18 +28,24 @@ function createFormsRepository(overrides = {}) {
 
 function createService(options = {}) {
   const formsRepository = options.formsRepository || createFormsRepository();
-  const onFormSubmitted = options.onFormSubmitted || vi.fn().mockResolvedValue();
-  const onFormAReadyCheck = options.onFormAReadyCheck || vi.fn().mockResolvedValue();
+  const onFormSubmitted =
+    options.onFormSubmitted || vi.fn().mockResolvedValue();
+  const onFormAReadyCheck =
+    options.onFormAReadyCheck || vi.fn().mockResolvedValue();
+  const onRegistrationSubmitted =
+    options.onRegistrationSubmitted || vi.fn().mockResolvedValue();
   const preparePatientProjection = options.preparePatientProjection;
 
   return {
     formsRepository,
     onFormSubmitted,
     onFormAReadyCheck,
+    onRegistrationSubmitted,
     service: createFormsService({
       formsRepository,
       onFormSubmitted,
       onFormAReadyCheck,
+      onRegistrationSubmitted,
       preparePatientProjection,
     }),
   };
@@ -52,7 +58,12 @@ describe("forms.service", () => {
         createService();
 
       await expect(
-        service.submitForm("customForm", Number.NaN, { answer: "yes" }, { is_admin: false }),
+        service.submitForm(
+          "customForm",
+          Number.NaN,
+          { answer: "yes" },
+          { is_admin: false },
+        ),
       ).resolves.toEqual({
         status: 400,
         body: { result: false, error: "Invalid patient id" },
@@ -72,7 +83,12 @@ describe("forms.service", () => {
       });
 
       await expect(
-        service.submitForm("customForm", 22, { answer: "yes" }, { is_admin: false }),
+        service.submitForm(
+          "customForm",
+          22,
+          { answer: "yes" },
+          { is_admin: false },
+        ),
       ).resolves.toEqual({
         status: 404,
         body: { result: false, error: "Patient not found" },
@@ -87,7 +103,12 @@ describe("forms.service", () => {
       const { service, formsRepository } = createService();
 
       await expect(
-        service.submitFormByKey("unknownForm", 22, { answer: "yes" }, { is_admin: false }),
+        service.submitFormByKey(
+          "unknownForm",
+          22,
+          { answer: "yes" },
+          { is_admin: false },
+        ),
       ).resolves.toEqual({
         status: 404,
         body: { result: false, error: "Unknown form" },
@@ -119,8 +140,12 @@ describe("forms.service", () => {
           $inc: { stationProjectionRevision: 1 },
         }),
       );
-      expect(onFormSubmitted).toHaveBeenCalledWith(expect.objectContaining({ queueNo: 22 }));
-      expect(onFormAReadyCheck).toHaveBeenCalledWith(expect.objectContaining({ queueNo: 22 }));
+      expect(onFormSubmitted).toHaveBeenCalledWith(
+        expect.objectContaining({ queueNo: 22 }),
+      );
+      expect(onFormAReadyCheck).toHaveBeenCalledWith(
+        expect.objectContaining({ queueNo: 22 }),
+      );
     });
 
     it("updates registration side effects and only projected eligibility fields", async () => {
@@ -179,6 +204,19 @@ describe("forms.service", () => {
         }),
       );
     });
+
+    it("completes staging only after a Registration form submission", async () => {
+      const { service, onRegistrationSubmitted } = createService();
+
+      await service.submitForm(
+        "registrationForm",
+        22,
+        { registrationQ2: "Yeo Z W D", registrationQ4: 61 },
+        { is_admin: false },
+      );
+
+      expect(onRegistrationSubmitted).toHaveBeenCalledWith(22);
+    });
   });
 
   describe("duplicate submission rules", () => {
@@ -224,7 +262,9 @@ describe("forms.service", () => {
       const formsRepository = createFormsRepository({
         findPatientByQueueNo: vi.fn().mockResolvedValue(repairPatient),
       });
-      const preparePatientProjection = vi.fn().mockResolvedValue(repairedPatient);
+      const preparePatientProjection = vi
+        .fn()
+        .mockResolvedValue(repairedPatient);
       const { service, onFormSubmitted, onFormAReadyCheck } = createService({
         formsRepository,
         preparePatientProjection,
@@ -275,8 +315,12 @@ describe("forms.service", () => {
           lastEditedBy: "admin@example.com",
         }),
       );
-      expect(onFormSubmitted).toHaveBeenCalledWith(expect.objectContaining({ queueNo: 22 }));
-      expect(onFormAReadyCheck).toHaveBeenCalledWith(expect.objectContaining({ queueNo: 22 }));
+      expect(onFormSubmitted).toHaveBeenCalledWith(
+        expect.objectContaining({ queueNo: 22 }),
+      );
+      expect(onFormAReadyCheck).toHaveBeenCalledWith(
+        expect.objectContaining({ queueNo: 22 }),
+      );
     });
   });
 
@@ -293,11 +337,18 @@ describe("forms.service", () => {
 
     it("surfaces a station recalculation failure after retries", async () => {
       const { service, formsRepository, onFormAReadyCheck } = createService({
-        onFormSubmitted: vi.fn().mockRejectedValue(new Error("station failure")),
+        onFormSubmitted: vi
+          .fn()
+          .mockRejectedValue(new Error("station failure")),
       });
 
       await expect(
-        service.submitForm("customForm", 22, { answer: "yes" }, { is_admin: false }),
+        service.submitForm(
+          "customForm",
+          22,
+          { answer: "yes" },
+          { is_admin: false },
+        ),
       ).rejects.toThrow("station failure");
 
       expect(formsRepository.insertFormDocument).toHaveBeenCalled();
@@ -316,7 +367,12 @@ describe("forms.service", () => {
       const { service } = createService({ onFormSubmitted });
 
       await expect(
-        service.submitForm("customForm", 22, { answer: "yes" }, { is_admin: false }),
+        service.submitForm(
+          "customForm",
+          22,
+          { answer: "yes" },
+          { is_admin: false },
+        ),
       ).resolves.toEqual({ status: 200, body: { result: true } });
       expect(onFormSubmitted).toHaveBeenCalledTimes(2);
     });
@@ -330,7 +386,11 @@ describe("forms.service", () => {
         registrationQ11: "No",
       };
       const formsRepository = createFormsRepository({
-        insertFormDocument: vi.fn().mockRejectedValue(Object.assign(new Error("duplicate"), { code: 11000 })),
+        insertFormDocument: vi
+          .fn()
+          .mockRejectedValue(
+            Object.assign(new Error("duplicate"), { code: 11000 }),
+          ),
         findFormDocument: vi.fn().mockResolvedValue(canonicalForm),
       });
       const { service, onFormSubmitted } = createService({ formsRepository });
@@ -367,9 +427,11 @@ describe("forms.service", () => {
 
     it("fails safely when a duplicate insert has no readable canonical form", async () => {
       const formsRepository = createFormsRepository({
-        insertFormDocument: vi.fn().mockRejectedValue(
-          Object.assign(new Error("duplicate"), { code: 11000 }),
-        ),
+        insertFormDocument: vi
+          .fn()
+          .mockRejectedValue(
+            Object.assign(new Error("duplicate"), { code: 11000 }),
+          ),
         findFormDocument: vi.fn().mockResolvedValue(null),
       });
       const { service, onFormSubmitted, onFormAReadyCheck } = createService({
@@ -377,7 +439,12 @@ describe("forms.service", () => {
       });
 
       await expect(
-        service.submitForm("customForm", 22, { answer: "loser" }, { is_admin: false }),
+        service.submitForm(
+          "customForm",
+          22,
+          { answer: "loser" },
+          { is_admin: false },
+        ),
       ).rejects.toThrow("canonical form could not be loaded");
       expect(formsRepository.updatePatientAfterForm).not.toHaveBeenCalled();
       expect(onFormSubmitted).not.toHaveBeenCalled();
@@ -386,15 +453,24 @@ describe("forms.service", () => {
 
     it("still succeeds when Form A readiness checking fails", async () => {
       const { service, formsRepository, onFormSubmitted } = createService({
-        onFormAReadyCheck: vi.fn().mockRejectedValue(new Error("form a failure")),
+        onFormAReadyCheck: vi
+          .fn()
+          .mockRejectedValue(new Error("form a failure")),
       });
 
       await expect(
-        service.submitForm("customForm", 22, { answer: "yes" }, { is_admin: false }),
+        service.submitForm(
+          "customForm",
+          22,
+          { answer: "yes" },
+          { is_admin: false },
+        ),
       ).resolves.toEqual({ status: 200, body: { result: true } });
 
       expect(formsRepository.insertFormDocument).toHaveBeenCalled();
-      expect(onFormSubmitted).toHaveBeenCalledWith(expect.objectContaining({ queueNo: 22 }));
+      expect(onFormSubmitted).toHaveBeenCalledWith(
+        expect.objectContaining({ queueNo: 22 }),
+      );
       expect(consoleError).toHaveBeenCalledWith(
         "Failed to check Form A queue readiness for patient 22:",
         expect.any(Error),
@@ -463,7 +539,9 @@ describe("forms.service", () => {
       });
       const { service } = createService({ formsRepository });
 
-      await expect(service.getPatientForm(Number.NaN, "customForm")).resolves.toEqual({
+      await expect(
+        service.getPatientForm(Number.NaN, "customForm"),
+      ).resolves.toEqual({
         status: 400,
         body: { result: false, error: "Bad request" },
       });
@@ -480,7 +558,9 @@ describe("forms.service", () => {
     it("rejects unknown form keys before fetching by key", async () => {
       const { service, formsRepository } = createService();
 
-      await expect(service.getPatientFormByKey(22, "unknownForm")).resolves.toEqual({
+      await expect(
+        service.getPatientFormByKey(22, "unknownForm"),
+      ).resolves.toEqual({
         status: 404,
         body: { result: false, error: "Unknown form" },
       });
@@ -495,7 +575,12 @@ describe("forms.service", () => {
         createService();
 
       await expect(
-        service.upsertPatientForm(Number.NaN, "customForm", {}, { email: "user@example.com" }),
+        service.upsertPatientForm(
+          Number.NaN,
+          "customForm",
+          {},
+          { email: "user@example.com" },
+        ),
       ).resolves.toEqual({
         status: 400,
         body: { result: false, error: "Bad request" },
@@ -535,8 +620,12 @@ describe("forms.service", () => {
           $set: expect.objectContaining({ customForm: 22 }),
         }),
       );
-      expect(onFormSubmitted).toHaveBeenCalledWith(expect.objectContaining({ queueNo: 22 }));
-      expect(onFormAReadyCheck).toHaveBeenCalledWith(expect.objectContaining({ queueNo: 22 }));
+      expect(onFormSubmitted).toHaveBeenCalledWith(
+        expect.objectContaining({ queueNo: 22 }),
+      );
+      expect(onFormAReadyCheck).toHaveBeenCalledWith(
+        expect.objectContaining({ queueNo: 22 }),
+      );
     });
 
     it("parses JSON string payloads before upserting", async () => {
@@ -555,6 +644,5 @@ describe("forms.service", () => {
         "user@example.com",
       );
     });
-
   });
 });

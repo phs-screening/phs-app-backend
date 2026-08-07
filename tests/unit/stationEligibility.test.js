@@ -1,6 +1,12 @@
 const { isEligible } = require("../../server/modules/stations/stationEligibility");
 
 describe("stationEligibility", () => {
+  describe("arthritis", () => {
+    it("is available to every patient because the questionnaire has no trigger", () => {
+      expect(isEligible("arthritis", {})).toBe(true);
+    });
+  });
+
   describe("dietitian", () => {
     it("is eligible for a relevant chronic condition", () => {
       expect(
@@ -454,7 +460,7 @@ describe("stationEligibility", () => {
       ).toBe(false);
     });
 
-    it("counts pneumococcal only above 65", () => {
+    it("counts pneumococcal from age 65", () => {
       // age 70 -> eligible on pneumococcal
       expect(
         isEligible("vaccination", {
@@ -462,27 +468,34 @@ describe("stationEligibility", () => {
           pmhx: { PMHXVAX1: "Yes", PMHXVAX3: "No", PMHXVAX4: "Yes" },
         }),
       ).toBe(true);
-      // age 65 -> NOT eligible (must be > 65)
+      // age 65 -> eligible
       expect(
         isEligible("vaccination", {
           reg: { registrationQ7: CITIZEN, registrationQ4: 65 },
           pmhx: { PMHXVAX1: "Yes", PMHXVAX3: "No", PMHXVAX4: "Yes" },
         }),
+      ).toBe(true);
+      // age 64 -> not eligible
+      expect(
+        isEligible("vaccination", {
+          reg: { registrationQ7: CITIZEN, registrationQ4: 64 },
+          pmhx: { PMHXVAX1: "Yes", PMHXVAX3: "No", PMHXVAX4: "Yes" },
+        }),
       ).toBe(false);
     });
 
-    it("counts shingles only above 50", () => {
-      // age 52 -> eligible on shingles
+    it("counts shingles from age 60", () => {
+      // age 60 -> eligible on shingles
       expect(
         isEligible("vaccination", {
-          reg: { registrationQ7: CITIZEN, registrationQ4: 52 },
+          reg: { registrationQ7: CITIZEN, registrationQ4: 60 },
           pmhx: { PMHXVAX1: "Yes", PMHXVAX5: "No", PMHXVAX6: "Yes" },
         }),
       ).toBe(true);
-      // age 50 -> NOT eligible (must be > 50)
+      // age 59 -> not eligible
       expect(
         isEligible("vaccination", {
-          reg: { registrationQ7: CITIZEN, registrationQ4: 50 },
+          reg: { registrationQ7: CITIZEN, registrationQ4: 59 },
           pmhx: { PMHXVAX1: "Yes", PMHXVAX5: "No", PMHXVAX6: "Yes" },
         }),
       ).toBe(false);
