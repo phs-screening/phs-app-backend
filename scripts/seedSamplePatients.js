@@ -1,4 +1,5 @@
 const { MongoClient } = require("mongodb");
+const { buildNameSearchPrefixes } = require("../server/utils/nameSearch");
 require("dotenv").config();
 
 const DEFAULT_COUNT = 100;
@@ -104,10 +105,12 @@ function parsePositiveInt(value, fallback) {
 function buildPatient(queueNo, index, prefix, now) {
   const gender = index % 2 === 0 ? "Female" : "Male";
   const age = 35 + (index % 45);
+  const initials = `${prefix}-${String(index + 1).padStart(3, "0")}`;
   const patient = {
     queueNo,
     gender,
-    initials: `${prefix}-${String(index + 1).padStart(3, "0")}`,
+    initials,
+    nameSearchPrefixes: buildNameSearchPrefixes(initials),
     age,
     preferredLanguage: index % 3 === 0 ? "Mandarin" : "English",
     goingForPhlebotomy: index % 4 === 0 ? "Yes" : "No",

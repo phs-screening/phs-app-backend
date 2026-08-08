@@ -170,6 +170,7 @@ describe("forms.service", () => {
           $set: expect.objectContaining({
             registrationForm: 22,
             initials: "ABC",
+            nameSearchPrefixes: ["a", "ab", "abc"],
             age: 68,
             "stationEligibilityInputs.reg": {
               registrationQ4: 68,

@@ -70,6 +70,7 @@ describe("preRegistrations.service", () => {
       expect.objectContaining({
         queueNo: 101,
         initials: "Yeo Z W D",
+        nameSearchPrefixes: expect.arrayContaining(["y", "ye", "yeo", "z", "w", "d"]),
         registrationSource: "pre-registration",
         createdBy: "volunteer@example.com",
         stationEligibilityInputs: {},
@@ -81,6 +82,7 @@ describe("preRegistrations.service", () => {
       expect.any(String),
       101,
     );
+    expect(result.body.data).not.toHaveProperty("nameSearchPrefixes");
   });
 
   it("uses normalized token search and rejects overly broad names", async () => {

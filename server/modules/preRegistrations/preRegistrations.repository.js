@@ -1,4 +1,4 @@
-const { buildNameTokenPrefixFilter } = require("../../utils/nameSearch");
+const { buildNamePrefixFilter } = require("../../utils/nameSearch");
 
 function createPreRegistrationsRepository({ getDb }) {
   function getDocument(result) {
@@ -125,7 +125,7 @@ function createPreRegistrationsRepository({ getDb }) {
   async function searchAvailableByName({ name, page, limit }) {
     const { prefills } = await getCollections();
     const filter = {
-      ...buildNameTokenPrefixFilter("lookup.normalizedInitials", name),
+      ...buildNamePrefixFilter("lookup.nameSearchPrefixes", name),
       status: { $in: ["available", "checking_in", "checked_in"] },
     };
     const skip = (page - 1) * limit;

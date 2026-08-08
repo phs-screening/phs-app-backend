@@ -213,6 +213,7 @@ function sanitizePatient(patient) {
   delete safePatient.stationProjectionVersion;
   delete safePatient.stationProjectionRevision;
   delete safePatient.stationProjectionNeedsRepair;
+  delete safePatient.nameSearchPrefixes;
   return safePatient;
 }
 

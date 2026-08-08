@@ -9,6 +9,7 @@ const {
   extractEligibilityInput,
 } = require("../stations/stationProjection");
 const { withRetry } = require("../../utils/retry");
+const { buildNameSearchPrefixes } = require("../../utils/nameSearch");
 
 function createFormsService({
   formsRepository,
@@ -74,6 +75,7 @@ function createFormsService({
 
     if (formCollection === "registrationForm") {
       set.initials = payload.registrationQ2;
+      set.nameSearchPrefixes = buildNameSearchPrefixes(payload.registrationQ2);
       set.age = payload.registrationQ4;
     }
 

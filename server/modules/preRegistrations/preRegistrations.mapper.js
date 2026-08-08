@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const { buildNameSearchPrefixes } = require("../../utils/nameSearch");
 
 const HEADER_PREFIXES = {
   sourceRecordId: ["booking id", "response id", "submission id"],
@@ -332,6 +333,7 @@ function mapRegistrationData(rawResponse, now = new Date()) {
     importIssues,
     lookup: {
       normalizedInitials: normalizeText(nameCandidate),
+      nameSearchPrefixes: buildNameSearchPrefixes(nameCandidate),
       dateOfBirth,
     },
     canCreatePrefill: Boolean(nameCandidate && dateOfBirth),
