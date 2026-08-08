@@ -28,6 +28,13 @@ export function buildOptions({ allowActive50 = true, flow } = {}) {
       `p(95)<${integerEnv("FORM_SAVE_P95_MS", 1000)}`,
       `p(99)<${integerEnv("FORM_SAVE_P99_MS", 2000)}`,
     ];
+  } else if (flow === "name-search") {
+    delete thresholds.phs_happy_flow_failures;
+    thresholds.phs_name_search_failures = ["rate<0.01"];
+    thresholds.phs_name_search_flow_duration = [
+      `p(95)<${integerEnv("NAME_SEARCH_P95_MS", PROFILE === "burst-50" ? 1000 : 500)}`,
+      `p(99)<${integerEnv("NAME_SEARCH_P99_MS", PROFILE === "burst-50" ? 2000 : 1000)}`,
+    ];
   } else {
     throw new Error(`Unknown performance flow "${flow}".`);
   }

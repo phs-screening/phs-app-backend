@@ -4,7 +4,10 @@ const {
   STATION_PROJECTION_VERSION,
   sanitizePatient,
 } = require("../stations/stationProjection");
-const { validateNameSearch } = require("../../utils/nameSearch");
+const {
+  buildNameSearchPrefixes,
+  validateNameSearch,
+} = require("../../utils/nameSearch");
 
 const summaryReportFormKeys = {
   registration: "registration",
@@ -73,6 +76,7 @@ function createPatientsService({ patientsRepository, patientQueueRepository }) {
       queueNo,
       gender: gender ?? "",
       initials: String(initials).trim(),
+      nameSearchPrefixes: buildNameSearchPrefixes(initials),
       age: Number.isFinite(Number(age)) ? Number(age) : 0,
       preferredLanguage: preferredLanguage ?? "",
       goingForPhlebotomy: goingForPhlebotomy ?? "No",
@@ -139,6 +143,17 @@ function createPatientsService({ patientsRepository, patientQueueRepository }) {
   }
 
   async function getPatientNames(query) {
+    if (Object.prototype.hasOwnProperty.call(query, "q")) {
+      const nameSearch = validateNameSearch(query.q);
+      if (!nameSearch.valid) {
+        return {
+          status: 400,
+          body: { result: false, error: nameSearch.error },
+        };
+      }
+      query = { ...query, q: nameSearch.query };
+    }
+
     if (!hasPatientNamesQuery(query)) {
       const data = await patientsRepository.findPatientNames();
       return { status: 200, body: { result: true, data } };

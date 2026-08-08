@@ -1,9 +1,10 @@
 const MAX_NAME_SEARCH_LENGTH = 100;
 const MAX_NAME_SEARCH_TOKENS = 8;
+const TOKEN_BOUNDARY = /[\s,./'-]/u;
 
 function normalizeNameSearch(value) {
   return String(value ?? "")
-    .replace(/\s+/g, " ")
+    .replace(/\s+/gu, " ")
     .trim();
 }
 
@@ -12,7 +13,7 @@ function validateNameSearch(value) {
   if (!query) {
     return { valid: false, error: "Patient name is required" };
   }
-  if (query.length > MAX_NAME_SEARCH_LENGTH) {
+  if (Array.from(query).length > MAX_NAME_SEARCH_LENGTH) {
     return { valid: false, error: "Patient name search is too long" };
   }
 
@@ -20,13 +21,7 @@ function validateNameSearch(value) {
   if (tokens.length > MAX_NAME_SEARCH_TOKENS) {
     return { valid: false, error: "Patient name search has too many words" };
   }
-  if (
-    !tokens.some(
-      (token) =>
-        Array.from(token).length >= 2 ||
-        Array.from(token).some((character) => character.codePointAt(0) > 127),
-    )
-  ) {
+  if (!tokens.some((token) => Array.from(token).length >= 2)) {
     return {
       valid: false,
       error: "Enter at least 2 characters from the patient name",
@@ -36,11 +31,27 @@ function validateNameSearch(value) {
   return { valid: true, query, tokens };
 }
 
-function escapeRegex(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function buildNameSearchPrefixes(value) {
+  const characters = Array.from(normalizeNameSearch(value).toLowerCase());
+  const prefixes = new Set();
+
+  for (let start = 0; start < characters.length; start += 1) {
+    if (start > 0 && !TOKEN_BOUNDARY.test(characters[start - 1])) continue;
+    if (/\s/u.test(characters[start])) continue;
+
+    let prefix = "";
+    for (let index = start; index < characters.length; index += 1) {
+      const character = characters[index];
+      if (/\s/u.test(character)) break;
+      prefix += character;
+      prefixes.add(prefix);
+    }
+  }
+
+  return [...prefixes];
 }
 
-function buildNameTokenPrefixFilter(field, value) {
+function buildNamePrefixFilter(field, value) {
   const validation = validateNameSearch(value);
   if (!validation.valid) {
     throw new Error(validation.error);
@@ -49,17 +60,12 @@ function buildNameTokenPrefixFilter(field, value) {
   const tokens = [
     ...new Set(validation.tokens.map((token) => token.toLowerCase())),
   ];
-  const conditions = tokens.map((token) => ({
-    [field]: {
-      $regex: `(?:^|[\\s,./'-])${escapeRegex(token)}`,
-      $options: "i",
-    },
-  }));
-
-  return conditions.length === 1 ? conditions[0] : { $and: conditions };
+  return { [field]: { $all: tokens } };
 }
 
 module.exports = {
-  buildNameTokenPrefixFilter,
+  buildNamePrefixFilter,
+  buildNameSearchPrefixes,
+  normalizeNameSearch,
   validateNameSearch,
 };

@@ -68,6 +68,14 @@ async function setup() {
       { initials: 1 },
       { name: "initials_1" },
     );
+    await db.collection("patients").createIndex(
+      { nameSearchPrefixes: 1, initials: 1 },
+      { name: "name_search_prefixes_initials" },
+    );
+    await db.collection("patients").createIndex(
+      { nameSearchPrefixes: 1, queueNo: 1 },
+      { name: "name_search_prefixes_queueNo" },
+    );
     await db.collection("stationCounts").createIndex(
       { queueNo: 1 },
       { unique: true, name: "unique_queueNo" },
@@ -99,6 +107,14 @@ async function setup() {
         status: 1,
       },
       { name: "initials_birthday_status" },
+    );
+    await db.collection("preRegistrationPrefill").createIndex(
+      {
+        "lookup.nameSearchPrefixes": 1,
+        status: 1,
+        queueNo: 1,
+      },
+      { name: "name_search_prefixes_status_queueNo" },
     );
     await db
       .collection("smsReminders")

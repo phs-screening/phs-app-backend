@@ -2,6 +2,7 @@ const createPatientsService = require("../../server/modules/patients/patients.se
 
 function createPatientsRepository(overrides = {}) {
   return {
+    findPatientNames: vi.fn().mockResolvedValue({ data: [], total: 0 }),
     findPatientByQueueNo: vi.fn().mockResolvedValue({ queueNo: 12 }),
     findPatientMatchesByInitials: vi.fn().mockResolvedValue({
       data: [],
@@ -13,6 +14,43 @@ function createPatientsRepository(overrides = {}) {
 }
 
 describe("patients.service", () => {
+  it("stores derived prefixes when creating a patient", async () => {
+    const patientsRepository = createPatientsRepository({ insertPatient: vi.fn() });
+    const patientQueueRepository = { getNextPatientQueueNo: vi.fn().mockResolvedValue(12) };
+    const service = createPatientsService({ patientsRepository, patientQueueRepository });
+
+    await service.createPatient({ initials: "Mel Tan" }, { email: "test@example.com" });
+
+    expect(patientsRepository.insertPatient).toHaveBeenCalledWith(
+      expect.objectContaining({
+        initials: "Mel Tan",
+        nameSearchPrefixes: expect.arrayContaining(["m", "me", "mel", "t", "ta", "tan"]),
+      }),
+    );
+  });
+
+  it("rejects a supplied one-character autocomplete query", async () => {
+    const patientsRepository = createPatientsRepository();
+    const service = createPatientsService({ patientsRepository });
+
+    await expect(service.getPatientNames({ q: "A", page: "1" })).resolves.toEqual({
+      status: 400,
+      body: { result: false, error: "Enter at least 2 characters from the patient name" },
+    });
+    expect(patientsRepository.findPatientNames).not.toHaveBeenCalled();
+  });
+
+  it("normalizes a valid autocomplete query", async () => {
+    const patientsRepository = createPatientsRepository();
+    const service = createPatientsService({ patientsRepository });
+
+    await expect(service.getPatientNames({ q: "  Mel   T ", page: "1" }))
+      .resolves.toEqual(expect.objectContaining({ status: 200 }));
+    expect(patientsRepository.findPatientNames).toHaveBeenCalledWith({
+      q: "Mel T", page: 1, limit: 20,
+    });
+  });
+
   it("passes a normalized token search to the repository", async () => {
     const patientsRepository = createPatientsRepository();
     const service = createPatientsService({ patientsRepository });
@@ -48,6 +86,7 @@ describe("patients.service", () => {
       findPatientByQueueNo: vi.fn().mockResolvedValue({
         queueNo: 12,
         initials: "ABC",
+        nameSearchPrefixes: ["a", "ab", "abc"],
         stationEligibilityInputs: { reg: { registrationQ4: 68 } },
         stationProjectionVersion: 1,
         stationProjectionRevision: 2,

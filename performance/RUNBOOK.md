@@ -176,87 +176,108 @@ Markdown, raw JSON, shell logs, or Git.
 - `results/2026-07-31-issue1-selection-active50-baseline-run1.md`
 - `results/2026-07-31-issue1-selection-burst50-baseline-run1.md`
 
-## Future patient-name search procedure
+## Patient-name search procedure
 
-> **Not yet authorized:** this section documents a future workflow only. Do not
-> create the search dataset, run k6 traffic, capture explain output, or record a
-> baseline until the baseline is explicitly authorized.
+> **Baseline budget consumed:** the single `active-50` and `burst-50` baselines
+> were captured on 7 August 2026. Do not repeat them. The optimized runs require
+> separate authorization.
 
 The governing metric contract is
 [`NAME_SEARCH_METRICS.md`](./NAME_SEARCH_METRICS.md). Use
 [`results/NAME_SEARCH_TEMPLATE.md`](./results/NAME_SEARCH_TEMPLATE.md) for every
-future run.
+run.
+
+### Run budget
+
+Database-query cost limits this investigation to:
+
+- one `active-50` and one `burst-50` baseline run, now captured;
+- one later `active-50` and one later `burst-50` optimized run when separately
+  authorized;
+- no repeat or `single-user` name-search runs.
+
+Each profile comparison is therefore one run per revision, not a median or
+statistically repeatable experiment. Health checks and manifest warm-up must be
+minimal and bounded; they are not additional load profiles.
 
 ### 1. Confirm isolation and record the environment
 
 - Obtain explicit confirmation that the database is disposable local or
   staging infrastructure.
-- Record the frontend and backend revisions and dirty/clean status.
-- Record Node and k6 versions, backend instance count, MongoDB tier and region,
-  driver/pool configuration, and test-runner location.
-- Ensure no unrelated load test, seed, migration, or database maintenance job
-  is running.
+- Record frontend/backend revisions and worktree status, Node and k6 versions,
+  backend instance count, MongoDB tier/region, driver/pool configuration, and
+  test-runner location.
+- Ensure no unrelated load, seed, migration, or maintenance job is running.
+- Confirm that no earlier name-search run has consumed the authorized baseline
+  or optimized-run budget.
 
-### 2. Prepare the fixed search dataset
+### 2. Prepare the fixed two-source dataset
 
-- Reset and seed exactly 2,000 deterministic synthetic patients using the future
-  dedicated name-search seeder.
-- Create matching registration documents required for birthday lookup.
-- Use no production patients, real names, credentials, or other personal data.
-- Produce a query manifest with expected result identifiers and counts for
-  common, medium, rare, absent, duplicate-full-name, and mixed-case searches.
-- Verify as a mandatory fixture invariant that `Tan`, `tan`, and `TAN` each
-  return `Mel Tan`.
-- Run the database index setup required by the scenario, then record its
-  revision with the dataset identifier.
+- Reset and seed exactly 2,000 deterministic synthetic queue-number identities
+  across the existing-patient and pre-registration search domain.
+- Record physical `patients` and `preRegistrationPrefill` document counts
+  separately because some queue numbers exist in both collections.
+- Include patient-only, available/checking-in pre-registration-only,
+  checked-in/completed overlapping, withdrawn negative, duplicate-name, and
+  shared-queue fixtures.
+- Create registration documents needed for birthday lookup. Use no production
+  patients, real names, credentials, or other personal data.
+- Produce a manifest containing expected source results, merged queue numbers,
+  pre-registration statuses, and resolved actions for common, medium, rare,
+  absent, duplicate, multi-token/token-order, and mixed-case queries.
+- Require `Tan`, `tan`, and `TAN` to find the expected `Mel Tan` fixtures.
+- Apply and record the required database index revision.
 
-### 3. Start one known backend and pass health gates
+### 3. Start one known backend and pass bounded health gates
 
-Follow the existing Windows process guidance: remove only stale processes that
-belong to this repository, start one managed backend without nodemon, and use
-hard request timeouts.
+Follow the existing Windows process guidance: remove only stale repository
+processes, start one managed backend without nodemon, and use hard timeouts.
 
-Before load, require all of these checks to pass:
+Before load, perform each health operation once:
 
 1. Login with the disposable performance volunteer.
-2. Read one seeded patient and verify its expected queue number.
-3. Request autocomplete with `Tan` and verify `Mel Tan` is present.
-4. Request exact-name matches for `Mel Tan` and verify the expected synthetic
-   duplicate rows and birthdays.
-5. Confirm the result cache is disabled.
+2. Read one seeded patient and verify its queue number.
+3. Request existing-patient autocomplete with `Tan` and verify the manifest's
+   expected existing-patient result.
+4. Request patient and pre-registration name matches with `Tan`, merge them by
+   queue number, and verify expected `Mel Tan` results and actions.
+5. Confirm withdrawn fixtures are absent and the result cache is disabled.
 
-Stop and diagnose the environment if any health gate fails or hangs.
+Stop and diagnose the environment if any gate fails or hangs. Do not repeat a
+profile without deciding whether the failed attempt consumed that profile's
+authorized run budget.
 
-### 4. Warm and execute comparable profiles
+### 4. Warm and execute the authorized profiles
 
-- Warm every query in the fixed manifest before recording custom metrics.
-- Run `single-user`, `active-50`, and `burst-50` separately.
-- Treat `active-50` as the principal capacity result and `burst-50` as a
-  synchronized stress result.
-- Enforce the existing hard request timeout and maximum run duration rules.
-- Do not run offline `explain("executionStats")` concurrently with k6.
+- Warm each fixed query once before recording custom metrics.
+- Run `active-50`: ramp 10 to 25 to 50, hold 50 for two minutes with the
+  documented think time, then ramp down.
+- Run `burst-50` separately: 50 virtual users perform one coordinated flow each
+  using the fixed common-prefix stress case.
+- Enforce hard request timeout, maximum duration, and bounded graceful shutdown.
+- Do not execute `explain("executionStats")` concurrently with k6.
+- Treat a threshold-failing run as the valid baseline if all intended iterations
+  complete without interruption and functional/HTTP failures remain acceptable.
 
-### 5. Repeat and compare
+### 5. Record and later compare once
 
-- Run each profile three times for the baseline and three times for the optimized
-  implementation.
-- Retain every result, including threshold failures; never select only the
-  fastest run.
-- Compare the median of the three run-level p95 values.
-- Use the same 2,000-patient dataset contents, query manifest, environment,
-  indexes, warm-up procedure, and profile configuration for baseline and after.
-- Capture offline explain statistics for both revisions using the same dataset
-  and queries, then record them in the result template.
+- Retain both authorized profile baselines even when a threshold fails.
+- When separately authorized, run each optimized profile once using identical
+  dataset contents, query manifest, environment, indexes, warm-up, and profile.
+- Compare baseline and optimized p95/p99 directly within each profile. Do not
+  report a median or imply statistical repeatability.
+- Capture offline explain statistics once per revision using the same dataset
+  and query manifest, and record result/count work for all three search
+  endpoints.
 
 ### 6. Validate and clean up
 
-- Confirm all intended iterations completed and result Markdown/raw JSON were
-  written to the intended locations.
-- Review combined-flow, autocomplete, and exact-match p95/p99, failure rate,
-  request count, throughput, and available database metrics.
-- Confirm matching equivalence for all queries of two or more characters and
-  the mandatory `Tan`/`tan`/`TAN` behavior.
-- Stop the exact backend process started for the run and verify its listener is
-  gone.
-- Keep raw JSON, credentials, generated datasets, and query manifests containing
-  run-specific data out of Git according to the repository ignore rules.
+- Confirm intended iterations completed and the Markdown/raw JSON output exists.
+- Review combined-flow, autocomplete, patient-search, pre-registration-search,
+  and merge p95/p99, failures, request count, throughput, and available database
+  metrics.
+- Confirm source-result and merged-action equivalence for queries of two or more
+  characters, including mandatory `Tan`/`tan`/`TAN` behavior.
+- Stop the exact backend process and verify its listener is gone.
+- Keep raw JSON, credentials, generated datasets, and run-specific manifests out
+  of Git according to repository ignore rules.

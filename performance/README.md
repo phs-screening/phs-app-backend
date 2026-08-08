@@ -34,13 +34,29 @@ The executable k6 scenarios live under `scenarios/`:
 The PowerShell wrapper records Git revisions and can emit a Markdown summary plus
 ignored raw JSON.
 
-A planned second investigation covers patient-name search under 50 concurrent
-users while retaining case-insensitive substring matching. Its measurement
-contract is in [`NAME_SEARCH_METRICS.md`](./NAME_SEARCH_METRICS.md), and its
-result-recording structure is in
-[`results/NAME_SEARCH_TEMPLATE.md`](./results/NAME_SEARCH_TEMPLATE.md). This is
-currently documentation only: no name-search scenario, dataset, baseline, or
-comparison run has been authorized or created.
+A second investigation covers the merged existing-patient and
+pre-registration name search at a maximum of 50 concurrent users while
+using case-insensitive token-prefix matching across both sources. Its
+measurement contract is in [`NAME_SEARCH_METRICS.md`](./NAME_SEARCH_METRICS.md),
+and its result-recording structure is in
+[`results/NAME_SEARCH_TEMPLATE.md`](./results/NAME_SEARCH_TEMPLATE.md). The
+single `active-50` and `burst-50` baselines were captured on 7 August 2026 and
+are summarized in
+[`results/2026-08-07-name-search-baseline-summary.md`](./results/2026-08-07-name-search-baseline-summary.md).
+Because of database-query cost, neither baseline may be repeated. One matching
+optimized run of each profile may be run only when separately authorized.
+
+Before deploying indexed prefix reads to a database containing existing data,
+deploy the synchronized write paths, then run:
+
+```powershell
+npm.cmd run backfill:name-search-prefixes -- --dry-run
+npm.cmd run backfill:name-search-prefixes -- --confirm
+npm.cmd run db:setup
+```
+
+The confirm command is idempotent and verifies every searchable document. Only
+switch search traffic after it reports zero mismatches and the indexes exist.
 
 ## Safety rules
 
@@ -63,10 +79,13 @@ performance/
   lib/
     config.js
     metrics.js
+    name-search-metrics.js
+    name-search-report.js
     report.js
   scenarios/
     form-save.js
     patient-selection.js
+    name-search.js
   results/
     TEMPLATE.md
     NAME_SEARCH_TEMPLATE.md

@@ -1,4 +1,4 @@
-const { buildNameTokenPrefixFilter } = require("../../utils/nameSearch");
+const { buildNamePrefixFilter } = require("../../utils/nameSearch");
 
 function createPatientsRepository({ getDb }) {
   async function getPatientsCollection() {
@@ -17,15 +17,10 @@ function createPatientsRepository({ getDb }) {
     return patients.findOne({ queueNo });
   }
 
-  function escapeRegex(value) {
-    return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  }
-
   function buildPatientNamesFilter(q) {
     const query = String(q ?? "").trim();
     if (!query) return {};
-
-    return { initials: { $regex: escapeRegex(query), $options: "i" } };
+    return buildNamePrefixFilter("nameSearchPrefixes", query);
   }
 
   async function findPatientNames(options) {
@@ -55,7 +50,7 @@ function createPatientsRepository({ getDb }) {
 
   async function findPatientMatchesByInitials({ initials, page, limit }) {
     const patients = await getPatientsCollection();
-    const filter = buildNameTokenPrefixFilter("initials", initials);
+    const filter = buildNamePrefixFilter("nameSearchPrefixes", initials);
     const skip = (page - 1) * limit;
 
     const [data, total] = await Promise.all([

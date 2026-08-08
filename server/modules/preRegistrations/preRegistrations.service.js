@@ -3,8 +3,14 @@ const {
   calculateAge,
   normalizeText,
 } = require("./preRegistrations.mapper");
-const { STATION_PROJECTION_VERSION } = require("../stations/stationProjection");
-const { validateNameSearch } = require("../../utils/nameSearch");
+const {
+  STATION_PROJECTION_VERSION,
+  sanitizePatient,
+} = require("../stations/stationProjection");
+const {
+  buildNameSearchPrefixes,
+  validateNameSearch,
+} = require("../../utils/nameSearch");
 
 const CHECK_IN_STALE_AFTER_MS = 2 * 60 * 1000;
 const MAX_PAGE_LIMIT = 20;
@@ -112,6 +118,9 @@ function createPreRegistrationsService({ preRegistrationsRepository }) {
       queueNo: prefill.queueNo,
       gender: registrationData.registrationQ5 || "",
       initials: String(registrationData.registrationQ2 || "").trim(),
+      nameSearchPrefixes: buildNameSearchPrefixes(
+        registrationData.registrationQ2,
+      ),
       age:
         dateOfBirth && !Number.isNaN(dateOfBirth.getTime())
           ? calculateAge(dateOfBirth)
@@ -145,7 +154,7 @@ function createPreRegistrationsService({ preRegistrationsRepository }) {
       );
       return {
         status: 200,
-        body: { result: true, data: existingPatient },
+        body: { result: true, data: sanitizePatient(existingPatient) },
       };
     }
 
@@ -174,7 +183,10 @@ function createPreRegistrationsService({ preRegistrationsRepository }) {
           queueNo,
           patient.queueNo,
         );
-        return { status: 200, body: { result: true, data: patient } };
+        return {
+          status: 200,
+          body: { result: true, data: sanitizePatient(patient) },
+        };
       }
 
       return {
@@ -201,7 +213,10 @@ function createPreRegistrationsService({ preRegistrationsRepository }) {
           patient.queueNo,
         );
       }
-      return { status: 200, body: { result: true, data: patient } };
+      return {
+        status: 200,
+        body: { result: true, data: sanitizePatient(patient) },
+      };
     } catch (error) {
       if (error?.code === 11000) {
         const concurrentPatient =
@@ -213,7 +228,7 @@ function createPreRegistrationsService({ preRegistrationsRepository }) {
           );
           return {
             status: 200,
-            body: { result: true, data: concurrentPatient },
+            body: { result: true, data: sanitizePatient(concurrentPatient) },
           };
         }
       }

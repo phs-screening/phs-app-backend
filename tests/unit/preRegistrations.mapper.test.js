@@ -58,6 +58,9 @@ describe("preRegistrations.mapper", () => {
     );
     expect(JSON.stringify(mapped.registrationData)).not.toContain("81234567");
     expect(mapped.canCreatePrefill).toBe(true);
+    expect(mapped.lookup.nameSearchPrefixes).toEqual(
+      expect.arrayContaining(["y", "ye", "yeo", "z", "w", "d"]),
+    );
   });
 
   it("flags likely NUS name-field misinterpretation for volunteer review", () => {
