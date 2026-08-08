@@ -1,12 +1,17 @@
-const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
+
+const SALT_ROUNDS = 12;
 
 async function hashPassword(password) {
-    const encoder = new TextEncoder();
-    const encodePassword = encoder.encode(password);
-    const hashPassword = await crypto.subtle.digest('SHA-256', encodePassword);
-    const hashArray = Array.from(new Uint8Array(hashPassword));
-    const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-    return hashHex;
+  return bcrypt.hash(password, SALT_ROUNDS);
 }
 
-module.exports = { hashPassword };
+async function verifyPassword(password, storedHash) {
+  if (!password || !storedHash) {
+    return false;
+  }
+
+  return bcrypt.compare(password, storedHash);
+}
+
+module.exports = { hashPassword, verifyPassword };
