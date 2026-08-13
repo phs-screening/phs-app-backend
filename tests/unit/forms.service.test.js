@@ -21,7 +21,6 @@ function createFormsRepository(overrides = {}) {
     }),
     updateFormDocument: vi.fn().mockResolvedValue({ modifiedCount: 1 }),
     findFormDocument: vi.fn().mockResolvedValue(null),
-    upsertFormDocument: vi.fn().mockResolvedValue({ modifiedCount: 1 }),
     ...overrides,
   };
 }
@@ -570,80 +569,4 @@ describe("forms.service", () => {
     });
   });
 
-  describe("upsertPatientForm", () => {
-    it("rejects bad IDs and missing form names", async () => {
-      const { service, formsRepository, onFormSubmitted, onFormAReadyCheck } =
-        createService();
-
-      await expect(
-        service.upsertPatientForm(
-          Number.NaN,
-          "customForm",
-          {},
-          { email: "user@example.com" },
-        ),
-      ).resolves.toEqual({
-        status: 400,
-        body: { result: false, error: "Bad request" },
-      });
-      await expect(
-        service.upsertPatientForm(22, "", {}, { email: "user@example.com" }),
-      ).resolves.toEqual({
-        status: 400,
-        body: { result: false, error: "Bad request" },
-      });
-
-      expect(formsRepository.upsertFormDocument).not.toHaveBeenCalled();
-      expect(onFormSubmitted).not.toHaveBeenCalled();
-      expect(onFormAReadyCheck).not.toHaveBeenCalled();
-    });
-
-    it("upserts object payloads, marks the patient record, and triggers callbacks", async () => {
-      const payload = { answer: "yes" };
-      const { service, formsRepository, onFormSubmitted, onFormAReadyCheck } =
-        createService();
-
-      await expect(
-        service.upsertPatientForm(22, "customForm", payload, {
-          email: "user@example.com",
-        }),
-      ).resolves.toEqual({ status: 200, body: { result: true } });
-
-      expect(formsRepository.upsertFormDocument).toHaveBeenCalledWith(
-        "customForm",
-        22,
-        payload,
-        "user@example.com",
-      );
-      expect(formsRepository.updatePatientAfterForm).toHaveBeenCalledWith(
-        22,
-        expect.objectContaining({
-          $set: expect.objectContaining({ customForm: 22 }),
-        }),
-      );
-      expect(onFormSubmitted).toHaveBeenCalledWith(
-        expect.objectContaining({ queueNo: 22 }),
-      );
-      expect(onFormAReadyCheck).toHaveBeenCalledWith(
-        expect.objectContaining({ queueNo: 22 }),
-      );
-    });
-
-    it("parses JSON string payloads before upserting", async () => {
-      const { service, formsRepository } = createService();
-
-      await expect(
-        service.upsertPatientForm(22, "customForm", '{"answer":"yes"}', {
-          email: "user@example.com",
-        }),
-      ).resolves.toEqual({ status: 200, body: { result: true } });
-
-      expect(formsRepository.upsertFormDocument).toHaveBeenCalledWith(
-        "customForm",
-        22,
-        { answer: "yes" },
-        "user@example.com",
-      );
-    });
-  });
 });

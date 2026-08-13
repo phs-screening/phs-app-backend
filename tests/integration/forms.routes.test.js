@@ -143,7 +143,7 @@ describe("forms routes integration", () => {
     await request(app)
       .get("/api/forms/registry")
       .set("Authorization", "Bearer invalid-token")
-      .expect(403);
+      .expect(401);
   });
 
   it("returns form registry metadata for authenticated users", async () => {
@@ -202,7 +202,7 @@ describe("forms routes integration", () => {
       });
   });
 
-  it("upserts generic patient forms from JSON string data", async () => {
+  it("does not expose the removed legacy form upsert route", async () => {
     const customForm = createDocumentCollection();
     const patients = createPatientsCollection([{ queueNo: 22 }]);
     const { app } = createTestApp({
@@ -214,19 +214,9 @@ describe("forms routes integration", () => {
       .post("/api/users/22/forms/customForm")
       .set("Authorization", `Bearer ${createToken({ email: "user@example.com" })}`)
       .send({ form_data: '{"answer":"yes"}' })
-      .expect(200)
-      .expect(({ body }) => {
-        expect(body).toEqual({ result: true });
-      });
+      .expect(404);
 
-    expect(customForm.docs[0]).toMatchObject({
-      _id: 22,
-      answer: "yes",
-      updatedAt: expect.any(Date),
-      updatedBy: "user@example.com",
-      createdAt: expect.any(Date),
-      createdBy: "user@example.com",
-    });
-    expect(patients.patients[0]).toMatchObject({ queueNo: 22, customForm: 22 });
+    expect(customForm.docs).toEqual([]);
+    expect(patients.patients[0]).toEqual({ queueNo: 22 });
   });
 });

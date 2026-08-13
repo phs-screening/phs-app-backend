@@ -77,7 +77,7 @@ describe("event dashboard routes integration", () => {
     await request(app)
       .get("/api/event-dashboard/summary")
       .set("Authorization", "Bearer invalid-token")
-      .expect(403);
+      .expect(401);
   });
 
   it("returns summary dashboard data", async () => {

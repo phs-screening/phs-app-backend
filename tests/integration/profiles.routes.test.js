@@ -63,7 +63,7 @@ describe("profile routes integration", () => {
     await request(app)
       .get("/api/profile")
       .set("Authorization", "Bearer invalid-token")
-      .expect(403);
+      .expect(401);
   });
 
   it("returns the current authenticated user's profile", async () => {
