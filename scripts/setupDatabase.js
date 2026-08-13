@@ -76,6 +76,14 @@ async function setup() {
       { source: 1, sourceRecordKey: 1 },
       { unique: true, name: "unique_source_record" },
     );
+    await db.collection("preRegistrationImportRuns").createIndex(
+      { runId: 1 },
+      { unique: true, name: "unique_runId" },
+    );
+    await db.collection("preRegistrationImportRuns").createIndex(
+      { startedAt: -1 },
+      { name: "startedAt_desc" },
+    );
     await db.collection("preRegistrationPrefill").createIndex(
       { rawImportId: 1 },
       { unique: true, name: "unique_raw_import" },
@@ -106,6 +114,14 @@ async function setup() {
         { rawImportId: 1, reminderType: 1, eventDate: 1 },
         { unique: true, name: "unique_reminder" },
       );
+    await db.collection("smsReminderRuns").createIndex(
+      { runId: 1 },
+      { unique: true, name: "unique_runId" },
+    );
+    await db.collection("smsReminderRuns").createIndex(
+      { startedAt: -1 },
+      { name: "startedAt_desc" },
+    );
     await db
       .collection("smsReminders")
       .createIndex(

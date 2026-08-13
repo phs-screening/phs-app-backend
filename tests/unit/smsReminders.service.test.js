@@ -1,19 +1,20 @@
 const {
   calculateScheduledFor,
   createSmsRemindersService,
+  parseReminderAt,
 } = require("../../server/modules/sms/smsReminders.service");
 
 const approvedTemplates = {
   screeningReminder: {
     version: "test-v1",
     approved: true,
-    requiredVariables: ["date", "time", "queueNo"],
+    requiredVariables: ["name", "date", "time", "queueNo"],
     maximumCharacters: 160,
     languages: {
-      English: "Reminder {{date}} {{time}}. Queue {{queueNo}}.",
-      Mandarin: "Mandarin {{date}} {{time}} {{queueNo}}",
-      Malay: "Peringatan {{date}} {{time}}. Nombor {{queueNo}}.",
-      Tamil: "Tamil {{date}} {{time}} {{queueNo}}",
+      English: "Reminder {{name}} {{date}} {{time}}. Queue {{queueNo}}.",
+      Mandarin: "Mandarin {{name}} {{date}} {{time}} {{queueNo}}",
+      Malay: "Peringatan {{name}} {{date}} {{time}}. Nombor {{queueNo}}.",
+      Tamil: "Tamil {{name}} {{date}} {{time}} {{queueNo}}",
     },
   },
 };
@@ -26,6 +27,7 @@ function rawImport(overrides = {}) {
       "Booking date": "23/08/2026",
       "Booking start time": "16:30",
       "Mobile Number": "91234567",
+      "Last name/Family name/Surname (as per NRIC)": "Yeo",
     },
     ...overrides,
   };
@@ -36,7 +38,7 @@ function prefill(overrides = {}) {
     rawImportId: "raw-1",
     queueNo: 123,
     status: "available",
-    registrationData: { registrationQ14: "English" },
+    registrationData: { registrationQ1: "Mr", registrationQ14: "English" },
     ...overrides,
   };
 }
@@ -69,6 +71,7 @@ function repository(overrides = {}) {
     })),
     createReminder: vi.fn().mockResolvedValue(true),
     findPendingReminders: vi.fn().mockResolvedValue([]),
+    findRemindersByEventDate: vi.fn().mockResolvedValue([]),
     findPlanningCandidates: vi.fn().mockResolvedValue([]),
     findReminderByKey: vi.fn().mockResolvedValue(null),
     findReminderContext: vi.fn().mockResolvedValue({
@@ -122,12 +125,38 @@ describe("smsReminders.service", () => {
     );
   });
 
-  it("blocks planning while production message templates are unfinished", async () => {
+  it("parses a manual reminder datetime with an explicit timezone", () => {
+    expect(
+      parseReminderAt("2026-08-20T14:30:00+08:00", "2026-08-23"),
+    ).toEqual(new Date("2026-08-20T06:30:00.000Z"));
+  });
+
+  it("rejects malformed, impossible, and post-event manual schedules", () => {
+    expect(() =>
+      parseReminderAt("2026-08-20T14:30:00", "2026-08-23"),
+    ).toThrow("ISO datetime with timezone");
+    expect(() =>
+      parseReminderAt("2026-02-30T14:30:00+08:00", "2026-08-23"),
+    ).toThrow("reminderAt is invalid");
+    expect(() =>
+      parseReminderAt("2026-08-23T00:00:00+08:00", "2026-08-23"),
+    ).toThrow("before the screening date begins");
+  });
+
+  it("plans the English production template regardless of report language", async () => {
     const { service: reminders, repository: repo } = service({
       repositoryOverrides: {
         findPlanningCandidates: vi
           .fn()
-          .mockResolvedValue([planningCandidate()]),
+          .mockResolvedValue([{
+            rawImport: rawImport(),
+            prefill: prefill({
+              registrationData: {
+                registrationQ1: "Mr",
+                registrationQ14: "Mandarin",
+              },
+            }),
+          }]),
       },
       templates: require("../../server/modules/sms/sms.templates"),
     });
@@ -139,11 +168,13 @@ describe("smsReminders.service", () => {
       }),
     ).resolves.toMatchObject({
       eventMatches: 1,
-      ready: 0,
-      templateBlocked: 1,
-      created: 0,
+      ready: 1,
+      templateBlocked: 0,
+      created: 1,
     });
-    expect(repo.createReminder).not.toHaveBeenCalled();
+    expect(repo.createReminder).toHaveBeenCalledWith(
+      expect.objectContaining({ language: "English" }),
+    );
   });
 
   it("plans an idempotent reminder without storing phone number or message", async () => {
@@ -175,6 +206,108 @@ describe("smsReminders.service", () => {
     expect(JSON.stringify(stored)).not.toContain("Reminder 23");
   });
 
+  it("plans a manually scheduled reminder and reports its scheduling mode", async () => {
+    const { service: reminders, repository: repo } = service({
+      repositoryOverrides: {
+        findPlanningCandidates: vi
+          .fn()
+          .mockResolvedValue([planningCandidate()]),
+      },
+    });
+
+    const result = await reminders.planReminders({
+      eventDate: "2026-08-23",
+      reminderAt: "2026-08-20T14:30:00+08:00",
+      now: new Date("2026-08-01T00:00:00.000Z"),
+    });
+
+    expect(repo.createReminder).toHaveBeenCalledWith(expect.objectContaining({
+      scheduledFor: new Date("2026-08-20T06:30:00.000Z"),
+      scheduleMode: "manual",
+    }));
+    expect(result.results).toEqual([
+      expect.objectContaining({
+        outcome: "created",
+        scheduledFor: new Date("2026-08-20T06:30:00.000Z"),
+        scheduleMode: "manual",
+      }),
+    ]);
+  });
+
+  it("limits manual planning to the requested queue number", async () => {
+    const otherCandidate = {
+      rawImport: rawImport({ _id: "raw-2" }),
+      prefill: prefill({ rawImportId: "raw-2", queueNo: 124 }),
+    };
+    const { service: reminders, repository: repo } = service({
+      repositoryOverrides: {
+        findPlanningCandidates: vi
+          .fn()
+          .mockResolvedValue([planningCandidate(), otherCandidate]),
+      },
+    });
+
+    await reminders.planReminders({
+      eventDate: "2026-08-23",
+      reminderAt: "2026-08-20T14:30:00+08:00",
+      queueNo: 123,
+      now: new Date("2026-08-01T00:00:00.000Z"),
+    });
+
+    expect(repo.createReminder).toHaveBeenCalledTimes(1);
+    expect(repo.createReminder).toHaveBeenCalledWith(
+      expect.objectContaining({ queueNo: 123 }),
+    );
+  });
+
+  it("updates a pending reminder when its manual schedule changes", async () => {
+    const existing = pendingJob({
+      scheduleMode: "manual",
+      scheduledFor: new Date("2026-08-20T06:00:00.000Z"),
+    });
+    const { service: reminders, repository: repo } = service({
+      repositoryOverrides: {
+        findPlanningCandidates: vi
+          .fn()
+          .mockResolvedValue([planningCandidate()]),
+        findReminderByKey: vi.fn().mockResolvedValue(existing),
+      },
+    });
+
+    await expect(reminders.planReminders({
+      eventDate: "2026-08-23",
+      reminderAt: "2026-08-20T15:00:00+08:00",
+      now: new Date("2026-08-01T00:00:00.000Z"),
+    })).resolves.toMatchObject({ updated: 1 });
+    expect(repo.updatePendingReminder).toHaveBeenCalledWith(
+      "sms-1",
+      expect.objectContaining({
+        scheduledFor: new Date("2026-08-20T07:00:00.000Z"),
+        scheduleMode: "manual",
+      }),
+    );
+  });
+
+  it("does not reschedule a reminder that has already been processed", async () => {
+    const { service: reminders, repository: repo } = service({
+      repositoryOverrides: {
+        findPlanningCandidates: vi
+          .fn()
+          .mockResolvedValue([planningCandidate()]),
+        findReminderByKey: vi.fn().mockResolvedValue(
+          pendingJob({ status: "accepted" }),
+        ),
+      },
+    });
+
+    await expect(reminders.planReminders({
+      eventDate: "2026-08-23",
+      reminderAt: "2026-08-20T15:00:00+08:00",
+      now: new Date("2026-08-01T00:00:00.000Z"),
+    })).resolves.toMatchObject({ unchanged: 1, updated: 0 });
+    expect(repo.updatePendingReminder).not.toHaveBeenCalled();
+  });
+
   it("dry-runs a send without checking balance, claiming, or contacting provider", async () => {
     const {
       service: reminders,
@@ -196,6 +329,24 @@ describe("smsReminders.service", () => {
     expect(client.checkBalance).not.toHaveBeenCalled();
     expect(client.sendSms).not.toHaveBeenCalled();
     expect(repo.claimReminder).not.toHaveBeenCalled();
+  });
+
+  it("passes an optional queue-number filter to pending reminder lookup", async () => {
+    const { service: reminders, repository: repo } = service({
+      config: { mode: "disabled", reminderHourSgt: 10 },
+    });
+
+    await reminders.sendReminders({
+      eventDate: "2026-08-23",
+      dryRun: true,
+      queueNo: 123,
+    });
+
+    expect(repo.findPendingReminders).toHaveBeenCalledWith(
+      "2026-08-23",
+      100,
+      123,
+    );
   });
 
   it("refuses a live send while SMS mode is disabled", async () => {
@@ -249,15 +400,26 @@ describe("smsReminders.service", () => {
       },
     });
 
-    await expect(
-      reminders.sendReminders({
+    const result = await reminders.sendReminders({
         eventDate: "2026-08-23",
         now: new Date("2026-08-22T03:00:00.000Z"),
+        runId: "send-run-1",
+      });
+    expect(result).toMatchObject({ accepted: 1, failed: 0, unknown: 0 });
+    expect(result.results).toEqual([
+      expect.objectContaining({
+        patientName: "Mr Yeo",
+        queueNo: 123,
+        outcome: "accepted",
+        acceptedAt: new Date("2026-08-22T03:00:00.000Z"),
+        scheduleStatus: "Provider accepted on/after schedule",
+        providerMessageId: "provider-1",
       }),
-    ).resolves.toMatchObject({ accepted: 1, failed: 0, unknown: 0 });
+    ]);
+    expect(JSON.stringify(result.results)).not.toContain("6591234567");
     expect(client.sendSms).toHaveBeenCalledWith({
       recipient: "6591234567",
-      message: "Reminder 23 Aug 2026 16:30. Queue 123.",
+      message: "Reminder Mr Yeo 23 Aug 2026 16:30. Queue 123.",
     });
     expect(repo.finishReminder).toHaveBeenCalledWith(
       "sms-1",
@@ -266,11 +428,45 @@ describe("smsReminders.service", () => {
       expect.objectContaining({
         providerMessageId: "provider-1",
         providerStatusCode: "0",
+        lastSendRunId: "send-run-1",
       }),
     );
     expect(JSON.stringify(repo.finishReminder.mock.calls)).not.toContain(
       "Reminder 23",
     );
+  });
+
+  it("reports provider acceptance with patient and schedule context", async () => {
+    const acceptedJob = pendingJob({
+      status: "accepted",
+      acceptedAt: new Date("2026-08-22T03:00:00.000Z"),
+      providerStatusCode: "0",
+      providerMessageId: "provider-1",
+      attemptCount: 1,
+    });
+    const { service: reminders } = service({
+      repositoryOverrides: {
+        findRemindersByEventDate: vi.fn().mockResolvedValue([acceptedJob]),
+      },
+    });
+
+    const result = await reminders.reportReminders({
+      eventDate: "2026-08-23",
+      now: new Date("2026-08-22T04:00:00.000Z"),
+    });
+
+    expect(result).toMatchObject({ total: 1, accepted: 1, pending: 0 });
+    expect(result.results).toEqual([
+      expect.objectContaining({
+        patientName: "Mr Yeo",
+        queueNo: 123,
+        appointmentTime: "16:30",
+        outcome: "accepted",
+        acceptedAt: new Date("2026-08-22T03:00:00.000Z"),
+        scheduleStatus: "Provider accepted on/after schedule",
+      }),
+    ]);
+    expect(JSON.stringify(result.results)).not.toContain("6591234567");
   });
 
   it("marks ambiguous provider outcomes unknown instead of retrying", async () => {
@@ -324,6 +520,35 @@ describe("smsReminders.service", () => {
       expect.any(String),
       expect.objectContaining({ providerStatusCode: "108" }),
     );
+  });
+
+  it("reports jobs not attempted after an account-level halt", async () => {
+    const { service: reminders } = service({
+      repositoryOverrides: {
+        findPendingReminders: vi.fn().mockResolvedValue([
+          pendingJob(),
+          pendingJob({ _id: "sms-2", queueNo: 124 }),
+        ]),
+      },
+      clientOverrides: {
+        sendSms: vi
+          .fn()
+          .mockResolvedValue({ accepted: false, statusCode: "108" }),
+      },
+    });
+
+    const result = await reminders.sendReminders({
+      eventDate: "2026-08-23",
+      now: new Date("2026-08-22T03:00:00.000Z"),
+    });
+
+    expect(result.results).toEqual([
+      expect.objectContaining({ queueNo: 123, outcome: "halted" }),
+      expect.objectContaining({
+        queueNo: 124,
+        outcome: "not_attempted_after_halt",
+      }),
+    ]);
   });
 
   it("does not contact the provider before the scheduled time", async () => {

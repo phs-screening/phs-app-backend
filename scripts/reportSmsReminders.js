@@ -1,46 +1,26 @@
-const { MongoClient } = require("mongodb");
 const crypto = require("crypto");
 const path = require("path");
+const { MongoClient } = require("mongodb");
 require("dotenv").config({ quiet: true });
 
-const { loadSmsConfig } = require("../server/modules/sms/sms.config");
 const createSmsRemindersRepository = require("../server/modules/sms/smsReminders.repository");
 const {
   createSmsRemindersService,
 } = require("../server/modules/sms/smsReminders.service");
-const { defaultReportPath } = require("./lib/auditWorkbook");
 const writeSmsAuditReport = require("./lib/smsAuditReport");
 
 function parseArguments(argv) {
-  const args = {
-    eventDate: "",
-    dryRun: false,
-    reminderAt: "",
-    queueNo: null,
-    report: "",
-  };
+  const args = { eventDate: "", report: "" };
   for (let index = 0; index < argv.length; index += 1) {
-    if (argv[index] === "--dry-run") {
-      args.dryRun = true;
-    } else if (argv[index] === "--event-date") {
+    if (argv[index] === "--event-date") {
       args.eventDate = argv[index + 1] || "";
       index += 1;
     } else if (argv[index] === "--report") {
       args.report = argv[index + 1] || "";
       index += 1;
-    } else if (argv[index] === "--reminder-at") {
-      args.reminderAt = argv[index + 1] || "";
-      index += 1;
-    } else if (argv[index] === "--queue-no") {
-      args.queueNo = Number.parseInt(argv[index + 1], 10);
-      index += 1;
     }
   }
   if (!args.eventDate) throw new Error("--event-date is required");
-  if (args.queueNo !== null &&
-      (!Number.isInteger(args.queueNo) || args.queueNo <= 0)) {
-    throw new Error("--queue-no must be a positive integer");
-  }
   return args;
 }
 
@@ -51,51 +31,39 @@ async function run() {
     throw new Error("MONGODB_URI and DB_NAME must be set");
   }
 
-  const client = new MongoClient(MONGODB_URI);
-  await client.connect();
   const runId = crypto.randomUUID();
   const startedAt = new Date();
   const reportPath = args.report
     ? path.resolve(args.report)
-    : defaultReportPath("sms-plan", startedAt);
+    : path.resolve("reports", `sms-${args.eventDate}_report.xlsx`);
+  const client = new MongoClient(MONGODB_URI);
+  await client.connect();
   let repository;
+
   try {
     const db = client.db(DB_NAME);
     repository = createSmsRemindersRepository({ getDb: async () => db });
     await repository.createRun({
       runId,
-      operation: "plan",
+      operation: "report",
       eventDate: args.eventDate,
-      dryRun: args.dryRun,
-      reminderAt: args.reminderAt || null,
-      queueNo: args.queueNo,
       status: "processing",
       startedAt,
     });
     const service = createSmsRemindersService({
       smsRemindersRepository: repository,
       smsClient: null,
-      smsConfig: loadSmsConfig(),
+      smsConfig: { mode: "disabled", reminderHourSgt: 10 },
     });
-    const result = await service.planReminders({
-      eventDate: args.eventDate,
-      dryRun: args.dryRun,
-      runId,
-      reminderAt: args.reminderAt || null,
-      queueNo: args.queueNo,
-    });
+    const result = await service.reportReminders({ eventDate: args.eventDate });
     const { results, ...summary } = result;
     const writtenReport = await writeSmsAuditReport({
       outputPath: reportPath,
       summary: {
         "Run ID": runId,
-        Operation: "plan",
+        Operation: "report",
         "Event date": args.eventDate,
-        "Dry run": args.dryRun,
-        "Schedule mode": args.reminderAt ? "manual" : "automatic",
-        "Reminder at": args.reminderAt || "Automatic",
-        "Queue number filter": args.queueNo || "All",
-        "Started at": startedAt,
+        "Generated at": startedAt,
         ...summary,
       },
       results,
@@ -106,7 +74,6 @@ async function run() {
       reportFile: path.basename(writtenReport),
     });
     console.log(JSON.stringify({
-      dryRun: args.dryRun,
       runId,
       report: writtenReport,
       ...summary,
@@ -115,7 +82,7 @@ async function run() {
     if (repository) {
       await repository.completeRun(runId, {
         status: "failed",
-        errorCode: error.code || "SMS_PLAN_FAILED",
+        errorCode: error.code || "SMS_REPORT_FAILED",
       });
     }
     throw error;

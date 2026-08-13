@@ -11,7 +11,7 @@ describe("smsReminder.mapper", () => {
         rawImportId: "raw-1",
         queueNo: 123,
         status: "available",
-        registrationData: { registrationQ14: "English" },
+        registrationData: { registrationQ1: "Mr", registrationQ14: "English" },
       },
       rawImport: {
         _id: "raw-1",
@@ -20,6 +20,7 @@ describe("smsReminder.mapper", () => {
           "Booking date": "23/08/2026",
           "Booking start time": "16:30",
           "Mobile Number": 6591234567,
+          "Last name/Family name/Surname (as per NRIC)": "Yeo",
         },
       },
     });
@@ -32,6 +33,7 @@ describe("smsReminder.mapper", () => {
       importStatus: "processed",
       eventDate: "2026-08-23",
       appointmentTime: "16:30",
+      recipientName: "Mr Yeo",
       recipient: "6591234567",
     });
   });
@@ -41,6 +43,17 @@ describe("smsReminder.mapper", () => {
     expect(parseBookingTime(new Date("1899-12-30T16:30:00.000Z"))).toBe(
       "16:30",
     );
+  });
+
+  it("uses English SMS regardless of the preferred report language", () => {
+    const context = mapReminderContext({
+      prefill: {
+        registrationData: { registrationQ14: "Mandarin" },
+      },
+      rawImport: { rawResponse: { "Mobile Number": "91234567" } },
+    });
+
+    expect(context.language).toBe("English");
   });
 
   it("rejects impossible booking dates and malformed 12-hour times", () => {

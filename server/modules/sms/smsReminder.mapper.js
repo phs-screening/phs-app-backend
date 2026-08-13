@@ -4,6 +4,7 @@ const HEADER_PREFIXES = {
   bookingDate: ["booking date"],
   bookingStartTime: ["booking start time"],
   mobileNumber: ["mobile number", "phone number"],
+  lastName: ["last name/family name/surname"],
 };
 
 function cleanText(value) {
@@ -121,16 +122,19 @@ function parseBookingTime(value) {
 
 function mapReminderContext({ prefill, rawImport }) {
   const rawResponse = rawImport?.rawResponse || {};
+  const salutation = cleanText(prefill?.registrationData?.registrationQ1);
+  const surname = cleanText(getRawValue(rawResponse, "lastName"));
   return {
     rawImportId: rawImport?._id || prefill?.rawImportId,
     queueNo: prefill?.queueNo,
-    language: prefill?.registrationData?.registrationQ14 || "",
+    language: "English",
     prefillStatus: prefill?.status,
     importStatus: rawImport?.importStatus,
     eventDate: parseBookingDate(getRawValue(rawResponse, "bookingDate")),
     appointmentTime: parseBookingTime(
       getRawValue(rawResponse, "bookingStartTime"),
     ),
+    recipientName: salutation && surname ? `${salutation} ${surname}` : "",
     recipient: normalizeSmsRecipient(getRawValue(rawResponse, "mobileNumber")),
   };
 }
