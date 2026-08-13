@@ -54,22 +54,16 @@ describe("stationEligibility", () => {
       );
     });
 
-    it("is eligible when not seen a dentist in 2 years AND interested", () => {
+    it("does not use removed ORAL4 and ORAL5 answers", () => {
       expect(
         isEligible("oralHealth", { hxoral: { ORAL4: "No", ORAL5: "Yes" } }),
-      ).toBe(true);
-    });
-
-    it("is not eligible when not seen a dentist in 2 years but not interested", () => {
-      expect(
-        isEligible("oralHealth", { hxoral: { ORAL4: "No", ORAL5: "No" } }),
       ).toBe(false);
     });
 
     it("is not eligible for a healthy mouth with a recent dental visit", () => {
       expect(
         isEligible("oralHealth", {
-          hxoral: { ORAL1: "Healthy", ORAL3: "No", ORAL4: "Yes", ORAL5: "No" },
+          hxoral: { ORAL1: "Healthy", ORAL3: "No" },
         }),
       ).toBe(false);
     });
@@ -314,9 +308,27 @@ describe("stationEligibility", () => {
       expect(
         isEligible("doctorStation", {
           hxm4m5: { hxM4M5Q1: "Yes" },
+          hcsrreview: { hxHcsrQ7: "Yes" },
+        }),
+      ).toBe(true);
+    });
+
+    it("keeps legacy HCSR Q7 answers eligible after the tab move", () => {
+      expect(
+        isEligible("doctorStation", {
+          hxm4m5: { hxM4M5Q1: "Yes" },
           hcsr: { hxHcsrQ7: "Yes" },
         }),
       ).toBe(true);
+    });
+
+    it("does not use removed PMHX7 answers", () => {
+      expect(
+        isEligible("doctorStation", {
+          hxm4m5: { hxM4M5Q1: "Yes" },
+          pmhx: { PMHX7: "Yes" },
+        }),
+      ).toBe(false);
     });
 
     it("no longer uses hxHcsrQ6 (removed in the 2026 form)", () => {
@@ -537,7 +549,7 @@ describe("stationEligibility", () => {
     expect(
       isEligible("doctorStation", {
         hxm4m5: { hxM4M5Q1: "Yes" },
-        hcsr: { hxHcsrQ7: "Yes" },
+        hcsrreview: { hxHcsrQ7: "Yes" },
       }),
     ).toBe(true);
   });

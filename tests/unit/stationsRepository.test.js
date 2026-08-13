@@ -11,6 +11,7 @@ const EXPECTED_KEY_TO_COLLECTION = {
   hxfamily: "hxFamilyForm",
   triage: "triageForm",
   hcsr: "hxHcsrForm",
+  hcsrreview: "hxHcsrReviewForm",
   hxoral: "hxOralForm",
   wce: "wceForm",
   phq: "geriPhqForm",

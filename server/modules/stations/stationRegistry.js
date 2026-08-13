@@ -63,6 +63,7 @@ const stationRegistry = {
       "hxFamily",
       "hxScoliosis",
       "hxOsa",
+      "hxHcsrReview",
       "hxM4M5Review",
     ],
     active: true,

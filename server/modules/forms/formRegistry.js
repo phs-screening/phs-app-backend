@@ -239,6 +239,12 @@ const formRegistry = {
     collection: "hxHcsrForm",
     patientMarker: "hxHcsrForm",
   },
+  hxHcsrReview: {
+    key: "hxHcsrReview",
+    title: "History HCSR Review",
+    collection: "hxHcsrReviewForm",
+    patientMarker: "hxHcsrReviewForm",
+  },
   hxOral: {
     key: "hxOral",
     title: "History Oral",
