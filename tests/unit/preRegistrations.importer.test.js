@@ -49,16 +49,32 @@ describe("preRegistrations.importer", () => {
       patientQueueRepository,
     });
 
-    const first = await importer.processRows([createRawResponse()]);
+    const first = await importer.processRows([createRawResponse()], {
+      runId: "run-1",
+    });
     const second = await importer.processRows([createRawResponse()]);
 
     expect(first.newPrefills).toBe(1);
     expect(first.queueNumbersAllocated).toBe(1);
+    expect(first.results).toEqual([
+      expect.objectContaining({
+        rowNumber: 2,
+        responseId: "46cvl4cf1z9nfpt01u0n34x4",
+        patientName: "Yeo Z W D",
+        queueNo: 101,
+        outcome: "created",
+      }),
+    ]);
     expect(second.unchangedRows).toBe(1);
     expect(patientQueueRepository.getNextPatientQueueNo).toHaveBeenCalledTimes(1);
     expect(repository.upsertPrefill).toHaveBeenLastCalledWith(
       "raw-1",
       expect.objectContaining({ queueNo: 101 }),
+    );
+    expect(repository.upsertRawImport).toHaveBeenCalledWith(
+      "formsg-bookings-2026",
+      "46cvl4cf1z9nfpt01u0n34x4",
+      expect.objectContaining({ lastImportRunId: "run-1" }),
     );
   });
 

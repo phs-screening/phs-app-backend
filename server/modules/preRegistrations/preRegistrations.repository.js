@@ -9,9 +9,23 @@ function createPreRegistrationsRepository({ getDb }) {
     const db = await getDb();
     return {
       imports: db.collection("preRegistrationImports"),
+      importRuns: db.collection("preRegistrationImportRuns"),
       prefills: db.collection("preRegistrationPrefill"),
       patients: db.collection("patients"),
     };
+  }
+
+  async function createImportRun(document) {
+    const { importRuns } = await getCollections();
+    await importRuns.insertOne(document);
+  }
+
+  async function completeImportRun(runId, document) {
+    const { importRuns } = await getCollections();
+    await importRuns.updateOne(
+      { runId },
+      { $set: { ...document, completedAt: new Date() } },
+    );
   }
 
   async function upsertRawImport(source, sourceRecordKey, document) {
@@ -87,6 +101,7 @@ function createPreRegistrationsRepository({ getDb }) {
           nameMappingWarnings: document.nameMappingWarnings,
           mappingIssues: document.mappingIssues,
           sourceContentHash: document.sourceContentHash,
+          lastImportRunId: document.lastImportRunId,
           ...(document.status ? { status: document.status } : {}),
           updatedAt: now,
         },
@@ -252,7 +267,9 @@ function createPreRegistrationsRepository({ getDb }) {
 
   return {
     claimForCheckIn,
+    completeImportRun,
     completeCheckIn,
+    createImportRun,
     findLikelyDuplicate,
     findPatientByQueueNo,
     findPrefillByPatientId,

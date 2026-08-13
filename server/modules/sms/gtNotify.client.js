@@ -21,7 +21,7 @@ function createGtNotifyClient({
     );
   }
 
-  async function post(url, parameters) {
+  async function post(url, parameters, operation) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
 
@@ -33,7 +33,12 @@ function createGtNotifyClient({
         signal: controller.signal,
       });
       if (!response.ok) {
-        throw createProviderError("GT Notify returned an HTTP error");
+        const error = createProviderError(
+          `GT Notify ${operation} returned HTTP ${response.status}`,
+          "SMS_PROVIDER_HTTP_ERROR",
+        );
+        error.httpStatus = response.status;
+        throw error;
       }
       return await response.text();
     } catch (error) {
@@ -45,13 +50,17 @@ function createGtNotifyClient({
   }
 
   async function sendSms({ recipient, message }) {
-    const text = await post(SEND_URL, {
-      username,
-      pass: passwordHash,
-      sender,
-      smstext: message,
-      gsm: recipient,
-    });
+    const text = await post(
+      SEND_URL,
+      {
+        username,
+        pass: passwordHash,
+        sender,
+        smstext: message,
+        gsm: recipient,
+      },
+      "send SMS",
+    );
 
     let response;
     try {
@@ -78,10 +87,14 @@ function createGtNotifyClient({
 
   async function checkBalance() {
     const text = (
-      await post(BALANCE_URL, {
-        username,
-        pass: passwordHash,
-      })
+      await post(
+        BALANCE_URL,
+        {
+          username,
+          pass: passwordHash,
+        },
+        "check balance",
+      )
     ).trim();
     const balance = Number(text);
     if (Number.isFinite(balance)) return balance;

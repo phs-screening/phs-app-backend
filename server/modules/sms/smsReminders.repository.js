@@ -5,7 +5,21 @@ function createSmsRemindersRepository({ getDb }) {
       imports: db.collection("preRegistrationImports"),
       prefills: db.collection("preRegistrationPrefill"),
       reminders: db.collection("smsReminders"),
+      runs: db.collection("smsReminderRuns"),
     };
+  }
+
+  async function createRun(document) {
+    const { runs } = await collections();
+    await runs.insertOne(document);
+  }
+
+  async function completeRun(runId, document) {
+    const { runs } = await collections();
+    await runs.updateOne(
+      { runId },
+      { $set: { ...document, completedAt: new Date() } },
+    );
   }
 
   async function findPlanningCandidates() {
@@ -64,13 +78,23 @@ function createSmsRemindersRepository({ getDb }) {
     return result.modifiedCount === 1;
   }
 
-  async function findPendingReminders(eventDate, limit) {
+  async function findPendingReminders(eventDate, limit, queueNo = null) {
     const { reminders } = await collections();
+    const filter = {
+      eventDate,
+      status: "pending",
+      ...(queueNo ? { queueNo } : {}),
+    };
     return reminders
-      .find({ eventDate, status: "pending" })
+      .find(filter)
       .sort({ queueNo: 1 })
       .limit(limit)
       .toArray();
+  }
+
+  async function findRemindersByEventDate(eventDate) {
+    const { reminders } = await collections();
+    return reminders.find({ eventDate }).sort({ queueNo: 1 }).toArray();
   }
 
   async function markStaleProcessingUnknown(eventDate, staleBefore) {
@@ -136,7 +160,7 @@ function createSmsRemindersRepository({ getDb }) {
     return result.modifiedCount === 1;
   }
 
-  async function cancelPendingReminder(id, reason) {
+  async function cancelPendingReminder(id, reason, fields = {}) {
     const { reminders } = await collections();
     const result = await reminders.updateOne(
       { _id: id, status: "pending" },
@@ -144,6 +168,7 @@ function createSmsRemindersRepository({ getDb }) {
         $set: {
           status: "cancelled",
           lastErrorCode: reason,
+          ...fields,
           updatedAt: new Date(),
         },
       },
@@ -158,8 +183,11 @@ function createSmsRemindersRepository({ getDb }) {
   return {
     cancelPendingReminder,
     claimReminder,
+    completeRun,
     createReminder,
+    createRun,
     findPendingReminders,
+    findRemindersByEventDate,
     findPlanningCandidates,
     findReminderByKey,
     findReminderContext,
