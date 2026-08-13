@@ -53,9 +53,9 @@ describe("preRegistrations.mapper", () => {
         registrationQ13: "Pioneer generation card holder",
         registrationQ16: "Yes",
         registrationQ14: "English",
-        registrationQ18: "No",
       }),
     );
+    expect(mapped.registrationData.registrationQ18).toBeUndefined();
     expect(JSON.stringify(mapped.registrationData)).not.toContain("81234567");
     expect(mapped.canCreatePrefill).toBe(true);
     expect(mapped.lookup.nameSearchPrefixes).toEqual(

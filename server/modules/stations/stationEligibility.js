@@ -2,7 +2,7 @@
 // deploy/startup, the server recomputes every patient's cached station counts
 // once so the Event Dashboard reflects the new rules. See eligibilityCacheSync.js.
 // (Form A / the Eligibility page always compute live, so they never need this.)
-const ELIGIBILITY_RULES_VERSION = 3;
+const ELIGIBILITY_RULES_VERSION = 4;
 
 const eligibilityRules = {
   healthierSg: ({ reg = {} }) => reg?.registrationQ11 !== "Yes",
@@ -46,12 +46,8 @@ const eligibilityRules = {
   ophthalmology: ({ hcsr = {} }) => hcsr?.hxHcsrQ3 === "Yes",
 
   // Dentistry: any reported dental concern (ORAL3 — the history-taker is shown a
-  // reference list of qualifying concerns in the form), OR (has not seen a dentist
-  // in 2 years AND is interested in an oral health consult). ORAL4 "No" = has NOT
-  // visited a dentist in the past 2 years.
-  oralHealth: ({ hxoral = {} }) =>
-    hxoral?.ORAL3 === "Yes" ||
-    (hxoral?.ORAL4 === "No" && hxoral?.ORAL5 === "Yes"),
+  // reference list of qualifying concerns in the form).
+  oralHealth: ({ hxoral = {} }) => hxoral?.ORAL3 === "Yes",
 
   // Social Services: a hx-Social need (wants CHAS / needs financial advice /
   // caregiver who feels unequipped), OR a referral from the Doctor's or the
@@ -127,7 +123,7 @@ const eligibilityRules = {
     ].some((question) => hxscoliosis?.[question] === "Yes"),
 
   // Doctor's Station: a History-Taking referral (the M4/M5 flag plus a specific
-  // concern from triage / history scrutiny / PMHx / PHQ), OR a referral logged at
+  // concern from triage / history scrutiny / PHQ), OR a referral logged at
   // the Dietician (dietitiansConsultQ9), Mental Health (SAMH3), Ophthalmology
   // (OphthalQ11), Audiometry (AudiometryQ11), Physiotherapy (geriPtConsultQ2) or
   // Occupational Therapy (geriOtConsultQ2) station. Those station referrals are
@@ -137,7 +133,7 @@ const eligibilityRules = {
   doctorStation: ({
     triage = {},
     hcsr = {},
-    pmhx = {},
+    hcsrreview = {},
     phq = {},
     hxm4m5 = {},
     dietitiansconsult = {},
@@ -149,8 +145,8 @@ const eligibilityRules = {
   }) =>
     (hxm4m5?.hxM4M5Q1 === "Yes" &&
       (triage?.triageQ9 === "Yes" ||
+        hcsrreview?.hxHcsrQ7 === "Yes" ||
         hcsr?.hxHcsrQ7 === "Yes" ||
-        pmhx?.PMHX7 === "Yes" ||
         phq?.PHQ10 >= 10 ||
         phq?.PHQ9 === "1 - Several days" ||
         phq?.PHQ9 === "2 - More than half the days" ||

@@ -17,6 +17,7 @@ describe("form A readiness", () => {
       hxFamilyForm: 22,
       hxScoliosisForm: 22,
       hxOsaForm: 22,
+      hxHcsrReviewForm: 22,
       hxM4M5ReviewForm: 22,
     };
 

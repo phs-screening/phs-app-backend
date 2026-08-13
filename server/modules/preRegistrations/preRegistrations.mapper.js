@@ -18,7 +18,6 @@ const HEADER_PREFIXES = {
   pioneerStatus: "pioneer generation status",
   publicAssistance: "do you have public assistance card",
   preferredLanguage: "preferred language for health report",
-  previousScreening: "have you attended any health screenings before",
 };
 
 const RACE_VALUES = {
@@ -315,14 +314,6 @@ function mapRegistrationData(rawResponse, now = new Date()) {
     "Preferred report language",
     importIssues,
   );
-  addMappedValue(
-    registrationData,
-    "registrationQ18",
-    mapYesNo(getRawValue(rawResponse, "previousScreening")),
-    "Previous screening history",
-    importIssues,
-  );
-
   if (registrationData.registrationQ6 === RACE_VALUES.others) {
     importIssues.push("Other race details must be completed during Registration.");
   }

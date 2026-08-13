@@ -1,4 +1,4 @@
-const STATION_PROJECTION_VERSION = 2;
+const STATION_PROJECTION_VERSION = 3;
 
 // This is the reviewable dependency manifest for the eligibility rules. Keep
 // it in sync with stationEligibility.js and bump the projection version when
@@ -11,11 +11,7 @@ const eligibilityRuleDependencies = {
   dietitian: ["pmhx.PMHX5", "hxsocial.SOCIAL13", "hxsocial.SOCIAL15"],
   geriatricScreening: ["reg.registrationQ4"],
   ophthalmology: ["hcsr.hxHcsrQ3"],
-  oralHealth: [
-    "hxoral.ORAL3",
-    "hxoral.ORAL4",
-    "hxoral.ORAL5",
-  ],
+  oralHealth: ["hxoral.ORAL3"],
   socialServices: [
     "hxsocial.SOCIAL6",
     "hxsocial.SOCIAL7",
@@ -62,7 +58,7 @@ const eligibilityRuleDependencies = {
   doctorStation: [
     "triage.triageQ9",
     "hcsr.hxHcsrQ7",
-    "pmhx.PMHX7",
+    "hcsrreview.hxHcsrQ7",
     "phq.PHQ9",
     "phq.PHQ10",
     "hxm4m5.hxM4M5Q1",
@@ -97,7 +93,6 @@ const projectionDefinitions = {
     alias: "pmhx",
     fields: [
       "PMHX5",
-      "PMHX7",
       "PMHXVAX1",
       "PMHXVAX2",
       "PMHXVAX3",
@@ -107,9 +102,13 @@ const projectionDefinitions = {
     ],
   },
   hxHcsrForm: { alias: "hcsr", fields: ["hxHcsrQ3", "hxHcsrQ5", "hxHcsrQ7"] },
+  hxHcsrReviewForm: {
+    alias: "hcsrreview",
+    fields: ["hxHcsrQ7"],
+  },
   hxOralForm: {
     alias: "hxoral",
-    fields: ["ORAL3", "ORAL4", "ORAL5"],
+    fields: ["ORAL3"],
   },
   ophthalForm: { alias: "ophthal", fields: ["OphthalQ11"] },
   geriPhqForm: {
