@@ -85,19 +85,6 @@ function createFormsController({ formsService }) {
     }
   }
 
-  async function upsertPatientForm(req, res) {
-    const id = parseInt(req.params.id, 10);
-    const form = req.params.form;
-    const formData = req.body?.form_data;
-
-    try {
-      const result = await formsService.upsertPatientForm(id, form, formData, req.user);
-      return sendServiceResult(res, result);
-    } catch (e) {
-      return res.status(500).json({ result: false, error: e.message });
-    }
-  }
-
   return {
     submitForm,
     submitFormByKey,
@@ -107,7 +94,6 @@ function createFormsController({ formsService }) {
     getPatientForms,
     getPatientForm,
     getPatientFormByKey,
-    upsertPatientForm,
   };
 }
 

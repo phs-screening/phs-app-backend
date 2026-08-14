@@ -282,35 +282,6 @@ function createFormsService({
     return { status: 200, body: { result: true, data: doc } };
   }
 
-  async function upsertPatientForm(id, form, formData, user) {
-    if (Number.isNaN(id) || !form) {
-      return { status: 400, body: { result: false, error: "Bad request" } };
-    }
-
-    const parsed =
-      typeof formData === "string" ? JSON.parse(formData) : formData;
-    const parsedWithDerivations = applyFormDerivations(form, parsed);
-
-    let patient = await formsRepository.findPatientByQueueNo(id);
-    if (!patient) {
-      return {
-        status: 404,
-        body: { result: false, error: "Patient not found" },
-      };
-    }
-    patient = await ensureProjection(patient);
-
-    await formsRepository.upsertFormDocument(
-      form,
-      id,
-      parsedWithDerivations,
-      user.email,
-    );
-    await finalizeFormSave(form, id, parsedWithDerivations);
-
-    return { status: 200, body: { result: true } };
-  }
-
   return {
     submitForm,
     submitFormByKey,
@@ -320,7 +291,6 @@ function createFormsService({
     getPatientForms,
     getPatientForm,
     getPatientFormByKey,
-    upsertPatientForm,
   };
 }
 

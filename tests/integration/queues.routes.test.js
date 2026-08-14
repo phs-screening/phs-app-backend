@@ -127,7 +127,7 @@ describe("queue routes integration", () => {
     await request(app)
       .get("/api/queues")
       .set("Authorization", "Bearer invalid-token")
-      .expect(403);
+      .expect(401);
   });
 
   it("lists queue entries for authenticated users", async () => {

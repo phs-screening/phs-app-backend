@@ -40,14 +40,14 @@ describe("auth middleware", () => {
       expect(next).not.toHaveBeenCalled();
     });
 
-    it("returns 403 when the token is invalid", () => {
+    it("returns 401 when the token is invalid", () => {
       const req = { headers: { authorization: "Bearer invalid-token" } };
       const res = createResponse();
       const next = vi.fn();
 
       authenticateToken(req, res, next);
 
-      expect(res.sendStatus).toHaveBeenCalledWith(403);
+      expect(res.sendStatus).toHaveBeenCalledWith(401);
       expect(next).not.toHaveBeenCalled();
     });
 

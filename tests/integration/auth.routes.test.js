@@ -197,7 +197,7 @@ describe("auth routes integration", () => {
       .post("/api/deleteAccount")
       .set("Authorization", "Bearer invalid-token")
       .send({ username: "user@example.com" })
-      .expect(403);
+      .expect(401);
 
     await request(app)
       .post("/api/deleteAccount")

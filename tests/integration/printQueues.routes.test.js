@@ -145,7 +145,7 @@ describe("print queue routes integration", () => {
     await request(app)
       .get("/api/formAPdfQueue")
       .set("Authorization", "Bearer invalid-token")
-      .expect(403);
+      .expect(401);
   });
 
   it("lists unprinted and printed Form A queue entries", async () => {

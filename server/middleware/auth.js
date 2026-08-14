@@ -7,7 +7,7 @@ function authenticateToken(req, res, next) {
   const token = authHeader && authHeader.split(' ')[1];
   if (!token) return res.sendStatus(401);
   jwt.verify(token, JWT_SECRET, (err, payload) => {
-    if (err) return res.sendStatus(403);
+    if (err) return res.sendStatus(401);
     req.user = payload; // { userId, email, is_admin }
     next();
   });

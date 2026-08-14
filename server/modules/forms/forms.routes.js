@@ -66,12 +66,6 @@ function createFormsRoutes({ getDb, authenticateToken }) {
     authenticateToken,
     formsController.getPatientForm,
   );
-  router.post(
-    "/users/:id/forms/:form",
-    authenticateToken,
-    formsController.upsertPatientForm,
-  );
-
   return router;
 }
 

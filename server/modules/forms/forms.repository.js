@@ -42,18 +42,6 @@ function createFormsRepository({ getDb }) {
     return collection.findOne({ _id: patientId });
   }
 
-  async function upsertFormDocument(form, patientId, parsed, userEmail) {
-    const collection = await getCollection(form);
-    return collection.updateOne(
-      { _id: patientId },
-      {
-        $set: { ...parsed, _id: patientId, updatedAt: new Date(), updatedBy: userEmail },
-        $setOnInsert: { createdAt: new Date(), createdBy: userEmail }
-      },
-      { upsert: true }
-    );
-  }
-
   return {
     findPatientByQueueNo,
     insertFormDocument,
@@ -61,7 +49,6 @@ function createFormsRepository({ getDb }) {
     updatePatient,
     updatePatientAfterForm,
     findFormDocument,
-    upsertFormDocument,
   };
 }
 
