@@ -32,12 +32,16 @@ function createStationsRepository({ getDb }) {
       hxgynae,
       ophthal,
       hxscoliosis,
+      scoliosisstation,
       doctorconsult,
       geriot,
       geript,
       dietitiansconsult,
       mentalhealth,
       audio,
+      geriphysical,
+      gerihomefast,
+      gerisppb,
     ] = await Promise.all([
       findFormByPatientId("hxNssForm", patientId),
       findFormByPatientId("hxSocialForm", patientId),
@@ -53,12 +57,16 @@ function createStationsRepository({ getDb }) {
       findFormByPatientId("gynaeForm", patientId),
       findFormByPatientId("ophthalForm", patientId),
       findFormByPatientId("hxScoliosisForm", patientId),
+      findFormByPatientId("scoliosisForm", patientId),
       findFormByPatientId("doctorConsultForm", patientId),
       findFormByPatientId("geriOtConsultForm", patientId),
       findFormByPatientId("geriPtConsultForm", patientId),
       findFormByPatientId("dietitiansConsultForm", patientId),
       findFormByPatientId("mentalHealthForm", patientId),
       findFormByPatientId("audiometryForm", patientId),
+      findFormByPatientId("geriPhysicalActivityLevelForm", patientId),
+      findFormByPatientId("geriOtQuestionnaireForm", patientId),
+      findFormByPatientId("geriSppbForm", patientId),
     ]);
 
     return {
@@ -76,12 +84,16 @@ function createStationsRepository({ getDb }) {
       hxgynae: hxgynae || {},
       ophthal: ophthal || {},
       hxscoliosis: hxscoliosis || {},
+      scoliosisstation: scoliosisstation || {},
       doctorconsult: doctorconsult || {},
       geriot: geriot || {},
       geript: geript || {},
       dietitiansconsult: dietitiansconsult || {},
       mentalhealth: mentalhealth || {},
       audio: audio || {},
+      geriphysical: geriphysical || {},
+      gerihomefast: gerihomefast || {},
+      gerisppb: gerisppb || {},
     };
   }
 

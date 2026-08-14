@@ -1,4 +1,4 @@
-const STATION_PROJECTION_VERSION = 3;
+const STATION_PROJECTION_VERSION = 6;
 
 // This is the reviewable dependency manifest for the eligibility rules. Keep
 // it in sync with stationEligibility.js and bump the projection version when
@@ -19,6 +19,7 @@ const eligibilityRuleDependencies = {
     "hxsocial.SOCIAL9",
     "doctorconsult.doctorSConsultQ6",
     "geriot.geriOtConsultQ4",
+    "gerihomefast.geriOtQuestionnaireQ34",
   ],
   mentalHealth: [
     "phq.PHQ1",
@@ -62,12 +63,17 @@ const eligibilityRuleDependencies = {
     "phq.PHQ9",
     "phq.PHQ10",
     "hxm4m5.hxM4M5Q1",
+    "wce.wceQ13",
+    "scoliosisstation.scoliosisQ3",
     "dietitiansconsult.dietitiansConsultQ9",
     "mentalhealth.SAMH3",
     "ophthal.OphthalQ11",
     "audio.AudiometryQ11",
     "geript.geriPtConsultQ2",
     "geriot.geriOtConsultQ2",
+    "geriphysical.geriPhysicalActivityLevelQ11",
+    "gerihomefast.geriOtQuestionnaireQ34",
+    "gerisppb.geriSppbQ11",
   ],
   ltfu: ["reg.registrationQ4", "pmhx.PMHX5"],
 };
@@ -130,8 +136,10 @@ const projectionDefinitions = {
       "Scoliosis6",
     ],
   },
+  scoliosisForm: { alias: "scoliosisstation", fields: ["scoliosisQ3"] },
   triageForm: { alias: "triage", fields: ["triageQ9"] },
   hxM4M5ReviewForm: { alias: "hxm4m5", fields: ["hxM4M5Q1"] },
+  wceForm: { alias: "wce", fields: ["wceQ13"] },
   doctorConsultForm: {
     alias: "doctorconsult",
     fields: ["doctorSConsultQ6"],
@@ -141,6 +149,15 @@ const projectionDefinitions = {
     fields: ["geriOtConsultQ2", "geriOtConsultQ4"],
   },
   geriPtConsultForm: { alias: "geript", fields: ["geriPtConsultQ2"] },
+  geriPhysicalActivityLevelForm: {
+    alias: "geriphysical",
+    fields: ["geriPhysicalActivityLevelQ11"],
+  },
+  geriOtQuestionnaireForm: {
+    alias: "gerihomefast",
+    fields: ["geriOtQuestionnaireQ34"],
+  },
+  geriSppbForm: { alias: "gerisppb", fields: ["geriSppbQ11"] },
   dietitiansConsultForm: {
     alias: "dietitiansconsult",
     fields: ["dietitiansConsultQ9"],

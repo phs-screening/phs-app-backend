@@ -40,6 +40,15 @@ describe("station eligibility projection", () => {
       },
     });
     expect(extractEligibilityInput("summaryForm", { secret: true })).toBeNull();
+    expect(
+      extractEligibilityInput("wceForm", {
+        wceQ5: "Yes",
+        wceQ13: "Yes",
+      }),
+    ).toEqual({
+      alias: "wce",
+      data: { wceQ13: "Yes" },
+    });
   });
 
   it("produces the same eligibility from legacy forms and projected inputs", () => {
@@ -92,7 +101,12 @@ describe("station eligibility projection", () => {
         "hxSocialForm",
         "hxNssForm",
         "hxHcsrReviewForm",
+        "geriPhysicalActivityLevelForm",
+        "geriOtQuestionnaireForm",
+        "geriSppbForm",
+        "scoliosisForm",
         "triageForm",
+        "wceForm",
       ]),
     );
     for (const definition of Object.values(dependencies)) {
