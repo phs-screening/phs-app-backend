@@ -5,6 +5,24 @@ const {
 } = require("../../server/modules/sms/smsReminders.service");
 
 const approvedTemplates = {
+  manualScreeningReminderPart1: {
+    version: "test-v1",
+    approved: true,
+    requiredVariables: ["name"],
+    maximumCharacters: 160,
+    languages: {
+      English: "(1/2) Reminder {{name}}.",
+    },
+  },
+  manualScreeningReminderPart2: {
+    version: "test-v1",
+    approved: true,
+    requiredVariables: ["date", "time", "queueNo"],
+    maximumCharacters: 160,
+    languages: {
+      English: "(2/2) {{date}} {{time}}. Queue {{queueNo}}.",
+    },
+  },
   screeningReminder: {
     version: "test-v1",
     approved: true,
@@ -258,6 +276,184 @@ describe("smsReminders.service", () => {
     expect(repo.createReminder).toHaveBeenCalledWith(
       expect.objectContaining({ queueNo: 123 }),
     );
+  });
+
+  it("exports a rendered reminder without writing or contacting the provider", async () => {
+    const {
+      service: reminders,
+      repository: repo,
+      client,
+    } = service({
+      repositoryOverrides: {
+        findPlanningCandidates: vi
+          .fn()
+          .mockResolvedValue([planningCandidate()]),
+      },
+    });
+
+    const result = await reminders.exportManualReminders({
+      eventDate: "2026-08-23",
+    });
+
+    expect(result).toMatchObject({
+      eventMatches: 1,
+      ready: 1,
+      attentionRequired: 0,
+    });
+    expect(result.results).toEqual([expect.objectContaining({
+      patientName: "Mr Yeo",
+      mobileNumber: "91234567",
+      queueNo: 123,
+      eventDate: "2026-08-23",
+      appointmentTime: "16:30",
+      messagePart1: "(1/2) Reminder Mr Yeo.",
+      messagePart1CharacterCount: 22,
+      messagePart2: "(2/2) 23 Aug 2026 16:30. Queue 123.",
+      messagePart2CharacterCount: 35,
+      outcome: "ready_to_send",
+      messagePart1Status: "",
+      messagePart2Status: "",
+      overallStatus: "",
+    })]);
+    expect(repo.createReminder).not.toHaveBeenCalled();
+    expect(repo.updatePendingReminder).not.toHaveBeenCalled();
+    expect(client.checkBalance).not.toHaveBeenCalled();
+    expect(client.sendSms).not.toHaveBeenCalled();
+  });
+
+  it("places an invalid mobile number in attention and skips other dates", async () => {
+    const invalidMobileImport = rawImport({ _id: "raw-invalid" });
+    invalidMobileImport.rawResponse["Mobile Number"] = "1234";
+    const otherDateImport = rawImport({ _id: "raw-other" });
+    otherDateImport.rawResponse["Booking date"] = "24/08/2026";
+    const { service: reminders } = service({
+      repositoryOverrides: {
+        findPlanningCandidates: vi.fn().mockResolvedValue([
+          {
+            rawImport: invalidMobileImport,
+            prefill: prefill({ rawImportId: "raw-invalid", queueNo: 124 }),
+          },
+          {
+            rawImport: otherDateImport,
+            prefill: prefill({ rawImportId: "raw-other", queueNo: 125 }),
+          },
+        ]),
+      },
+    });
+
+    const result = await reminders.exportManualReminders({
+      eventDate: "2026-08-23",
+    });
+
+    expect(result).toMatchObject({
+      ready: 0,
+      attentionRequired: 1,
+      skippedOtherEvent: 1,
+    });
+    expect(result.results).toEqual([expect.objectContaining({
+      queueNo: 124,
+      mobileNumber: "1234",
+      eventDate: "2026-08-23",
+      appointmentTime: "16:30",
+      outcome: "attention_required",
+      errorCode: "SMS_RECIPIENT_INVALID",
+    })]);
+  });
+
+  it("requires review when a manual segment could use Unicode encoding", async () => {
+    const unicodeNameImport = rawImport();
+    unicodeNameImport.rawResponse[
+      "Last name/Family name/Surname (as per NRIC)"
+    ] = "Yéo";
+    const { service: reminders } = service({
+      repositoryOverrides: {
+        findPlanningCandidates: vi.fn().mockResolvedValue([{
+          rawImport: unicodeNameImport,
+          prefill: prefill(),
+        }]),
+      },
+    });
+
+    const result = await reminders.exportManualReminders({
+      eventDate: "2026-08-23",
+    });
+
+    expect(result).toMatchObject({ ready: 0, attentionRequired: 1 });
+    expect(result.results).toEqual([expect.objectContaining({
+      patientName: "Mr Yéo",
+      outcome: "attention_required",
+      errorCode: "SMS_MANUAL_SEGMENT_UNSUPPORTED_CHARACTERS",
+    })]);
+  });
+
+  it("exports multiple event dates into one workbook result", async () => {
+    const secondDateImport = rawImport({ _id: "raw-2" });
+    secondDateImport.rawResponse["Booking date"] = "22/08/2026";
+    const { service: reminders, repository: repo } = service({
+      repositoryOverrides: {
+        findPlanningCandidates: vi.fn().mockResolvedValue([
+          planningCandidate(),
+          {
+            rawImport: secondDateImport,
+            prefill: prefill({ rawImportId: "raw-2", queueNo: 124 }),
+          },
+        ]),
+      },
+    });
+
+    const result = await reminders.exportManualReminders({
+      eventDates: ["2026-08-22", "2026-08-23"],
+      now: new Date("2026-08-01T00:00:00.000Z"),
+    });
+
+    expect(result).toMatchObject({
+      eventMatches: 2,
+      ready: 2,
+      attentionRequired: 0,
+      skippedOtherEvent: 0,
+    });
+    expect(result.results.map((row) => row.eventDate)).toEqual([
+      "2026-08-23",
+      "2026-08-22",
+    ]);
+    expect(repo.findRemindersByEventDate).toHaveBeenCalledTimes(2);
+    expect(repo.findRemindersByEventDate).toHaveBeenCalledWith("2026-08-22");
+    expect(repo.findRemindersByEventDate).toHaveBeenCalledWith("2026-08-23");
+  });
+
+  it("requires review when a reminder was already accepted", async () => {
+    const { service: reminders } = service({
+      repositoryOverrides: {
+        findPlanningCandidates: vi
+          .fn()
+          .mockResolvedValue([planningCandidate()]),
+        findRemindersByEventDate: vi.fn().mockResolvedValue([
+          pendingJob({ status: "accepted" }),
+        ]),
+      },
+    });
+
+    const result = await reminders.exportManualReminders({
+      eventDate: "2026-08-23",
+    });
+
+    expect(result).toMatchObject({ ready: 0, attentionRequired: 1 });
+    expect(result.results).toEqual([expect.objectContaining({
+      queueNo: 123,
+      existingStatus: "accepted",
+      outcome: "attention_required",
+      errorCode: "SMS_ALREADY_ACCEPTED",
+    })]);
+  });
+
+  it("refuses a manual export after the screening date starts", async () => {
+    const { service: reminders, repository: repo } = service();
+
+    await expect(reminders.exportManualReminders({
+      eventDate: "2026-08-23",
+      now: new Date("2026-08-22T16:00:00.000Z"),
+    })).rejects.toMatchObject({ code: "SMS_EVENT_STARTED" });
+    expect(repo.findPlanningCandidates).not.toHaveBeenCalled();
   });
 
   it("updates a pending reminder when its manual schedule changes", async () => {
