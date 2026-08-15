@@ -1,11 +1,20 @@
 const crypto = require("crypto");
 const defaultTemplates = require("./sms.templates");
 const { assertSmsSendingAllowed } = require("./sms.config");
-const { mapReminderContext } = require("./smsReminder.mapper");
+const {
+  getRawValue,
+  mapReminderContext,
+  parseBookingDate,
+  parseBookingTime,
+} = require("./smsReminder.mapper");
 const { getApprovedTemplate, renderSmsTemplate } = require("./sms.renderer");
 
 const REMINDER_TYPE = "screening_reminder";
 const TEMPLATE_KEY = "screeningReminder";
+const MANUAL_TEMPLATE_KEYS = [
+  "manualScreeningReminderPart1",
+  "manualScreeningReminderPart2",
+];
 const HALT_STATUS_CODES = new Set(["101", "102", "103", "108"]);
 const UNKNOWN_STATUS_CODES = new Set(["888", "999"]);
 const PROCESSING_STALE_AFTER_MS = 5 * 60 * 1000;
@@ -138,6 +147,71 @@ function createSendSummary() {
   };
 }
 
+function manualExportResult(candidate, context, outcome, fields = {}) {
+  const rawResponse = candidate?.rawImport?.rawResponse || {};
+  const rawRecipient = String(
+    getRawValue(rawResponse, "mobileNumber") ?? "",
+  ).replace(/\D/g, "");
+  const salutation = String(
+    candidate?.prefill?.registrationData?.registrationQ1 ?? "",
+  ).trim();
+  const surname = String(getRawValue(rawResponse, "lastName") ?? "").trim();
+  const recipient = context?.recipient || "";
+
+  return {
+    patientName: context?.recipientName || [salutation, surname]
+      .filter(Boolean)
+      .join(" "),
+    mobileNumber: recipient ? recipient.slice(2) : rawRecipient,
+    queueNo: candidate?.prefill?.queueNo || "",
+    language: context?.language || "English",
+    eventDate: fields.eventDate || context?.eventDate || "",
+    appointmentTime: context?.appointmentTime || parseBookingTime(
+      getRawValue(rawResponse, "bookingStartTime"),
+    ) || "",
+    messagePart1: fields.messagePart1 || "",
+    messagePart1CharacterCount: fields.messagePart1?.length || 0,
+    messagePart2: fields.messagePart2 || "",
+    messagePart2CharacterCount: fields.messagePart2?.length || 0,
+    existingStatus: fields.existingStatus || "",
+    outcome,
+    errorCode: fields.errorCode || "",
+    messagePart1Status: "",
+    messagePart1SentAt: "",
+    messagePart1ProviderReference: "",
+    messagePart2Status: "",
+    messagePart2SentAt: "",
+    messagePart2ProviderReference: "",
+    overallStatus: "",
+    operator: "",
+  };
+}
+
+function assertManualSmsCharacters(message) {
+  const textWithoutLineBreaks = message
+    .replaceAll("\r", "")
+    .replaceAll("\n", "");
+  if (/[^\x20-\x7E]/.test(textWithoutLineBreaks)) {
+    const error = new Error(
+      "Manual SMS contains characters that may trigger Unicode encoding",
+    );
+    error.code = "SMS_MANUAL_SEGMENT_UNSUPPORTED_CHARACTERS";
+    throw error;
+  }
+}
+
+function requiredContextIssue(context) {
+  if (!context?.rawImportId) return "SMS_SOURCE_ID_MISSING";
+  if (!Number.isInteger(context.queueNo) || context.queueNo <= 0) {
+    return "SMS_QUEUE_NUMBER_INVALID";
+  }
+  if (!context.eventDate) return "SMS_BOOKING_DATE_INVALID";
+  if (!context.appointmentTime) return "SMS_BOOKING_TIME_INVALID";
+  if (!context.recipientName) return "SMS_RECIPIENT_NAME_MISSING";
+  if (!context.recipient) return "SMS_RECIPIENT_INVALID";
+  return null;
+}
+
 function auditResult(job, outcome, fields = {}) {
   return {
     patientName: fields.patientName || "",
@@ -201,9 +275,9 @@ function createSmsRemindersService({
     }
   }
 
-  function validateTemplate(language, version) {
+  function validateTemplate(language, version, templateKey = TEMPLATE_KEY) {
     const { definition } = getApprovedTemplate(
-      TEMPLATE_KEY,
+      templateKey,
       language,
       templates,
     );
@@ -383,6 +457,157 @@ function createSmsRemindersService({
       }
     }
 
+    return { ...summary, results };
+  }
+
+  async function exportManualReminders({
+    eventDate,
+    eventDates = [],
+    queueNo = null,
+    now = new Date(),
+  }) {
+    const normalizedEventDates = [
+      ...new Set([eventDate, ...eventDates].filter(Boolean).map(parseEventDate)),
+    ].sort();
+    if (normalizedEventDates.length === 0) {
+      throw new Error("At least one eventDate is required");
+    }
+    if (normalizedEventDates.some((date) => now >= calculateEventStart(date))) {
+      const error = new Error(
+        "Cannot export manual reminders after the event has started",
+      );
+      error.code = "SMS_EVENT_STARTED";
+      throw error;
+    }
+    const candidates = await smsRemindersRepository.findPlanningCandidates();
+    const existingJobs = (await Promise.all(
+      normalizedEventDates.map((date) =>
+        smsRemindersRepository.findRemindersByEventDate(date),
+      ),
+    )).flat();
+    const jobsByImportId = new Map(
+      existingJobs
+        .filter((job) => job.rawImportId)
+        .map((job) => [`${job.rawImportId}:${job.eventDate}`, job]),
+    );
+    const selectedEventDates = new Set(normalizedEventDates);
+    const summary = {
+      candidatesRead: candidates.length,
+      selectedCandidates: 0,
+      eventMatches: 0,
+      ready: 0,
+      attentionRequired: 0,
+      skippedOtherEvent: 0,
+    };
+    const results = [];
+
+    for (const candidate of candidates) {
+      if (queueNo && candidate?.prefill?.queueNo !== queueNo) continue;
+      summary.selectedCandidates += 1;
+
+      const { context, issue } = prepareContext(candidate);
+      const candidateEventDate = context?.eventDate || parseBookingDate(
+        getRawValue(candidate?.rawImport?.rawResponse, "bookingDate"),
+      );
+      if (candidateEventDate && !selectedEventDates.has(candidateEventDate)) {
+        summary.skippedOtherEvent += 1;
+        continue;
+      }
+
+      const contextIssue = issue || requiredContextIssue(context);
+      if (contextIssue) {
+        summary.attentionRequired += 1;
+        results.push(manualExportResult(
+          candidate,
+          context,
+          "attention_required",
+          { eventDate: candidateEventDate, errorCode: contextIssue },
+        ));
+        continue;
+      }
+      summary.eventMatches += 1;
+
+      const existingJob = jobsByImportId.get(
+        `${context.rawImportId}:${context.eventDate}`,
+      );
+      if (existingJob && existingJob.status !== "pending") {
+        const statusErrorCodes = {
+          accepted: "SMS_ALREADY_ACCEPTED",
+          processing: "SMS_SEND_IN_PROGRESS",
+          unknown: "SMS_DELIVERY_STATUS_UNKNOWN",
+          failed: "SMS_PREVIOUS_SEND_FAILED",
+          cancelled: "SMS_REMINDER_CANCELLED",
+        };
+        summary.attentionRequired += 1;
+        results.push(manualExportResult(
+          candidate,
+          context,
+          "attention_required",
+          {
+            existingStatus: existingJob.status,
+            errorCode: statusErrorCodes[existingJob.status] ||
+              "SMS_EXISTING_STATUS_REVIEW_REQUIRED",
+          },
+        ));
+        continue;
+      }
+
+      let messagePart1;
+      let messagePart2;
+      try {
+        const variables = {
+          name: context.recipientName,
+          date: formatAppointmentDate(context.eventDate),
+          time: context.appointmentTime,
+          queueNo: context.queueNo,
+        };
+        [messagePart1, messagePart2] = MANUAL_TEMPLATE_KEYS.map(
+          (templateKey) => {
+            const template = validateTemplate(
+              context.language,
+              null,
+              templateKey,
+            );
+            const requiredVariables = Object.fromEntries(
+              template.requiredVariables.map((key) => [key, variables[key]]),
+            );
+            const message = renderSmsTemplate({
+              templateKey,
+              templateVersion: template.version,
+              language: context.language,
+              variables: requiredVariables,
+              templates,
+            }).message;
+            assertManualSmsCharacters(message);
+            return message;
+          },
+        );
+      } catch (error) {
+        summary.attentionRequired += 1;
+        results.push(manualExportResult(
+          candidate,
+          context,
+          "attention_required",
+          {
+            existingStatus: existingJob?.status,
+            errorCode: error.code || "SMS_TEMPLATE_RENDER_FAILED",
+          },
+        ));
+        continue;
+      }
+
+      summary.ready += 1;
+      results.push(manualExportResult(candidate, context, "ready_to_send", {
+        existingStatus: existingJob?.status,
+        messagePart1,
+        messagePart2,
+      }));
+    }
+
+    results.sort((left, right) =>
+      Number(left.queueNo || Number.MAX_SAFE_INTEGER) -
+      Number(right.queueNo || Number.MAX_SAFE_INTEGER),
+    );
     return { ...summary, results };
   }
 
@@ -719,7 +944,12 @@ function createSmsRemindersService({
     return { ...summary, results };
   }
 
-  return { planReminders, reportReminders, sendReminders };
+  return {
+    exportManualReminders,
+    planReminders,
+    reportReminders,
+    sendReminders,
+  };
 }
 
 module.exports = {

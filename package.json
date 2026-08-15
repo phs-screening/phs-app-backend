@@ -10,6 +10,7 @@
     "db:setup": "node scripts/setupDatabase.js",
     "prereg:import": "node scripts/importPreRegistrations.js",
     "sms:plan": "node scripts/planSmsReminders.js",
+    "sms:manual-export": "node scripts/exportManualSmsReminders.js",
     "sms:report": "node scripts/reportSmsReminders.js",
     "sms:send": "node scripts/sendSmsReminders.js",
     "seed:sample-patients": "node scripts/seedSamplePatients.js",
