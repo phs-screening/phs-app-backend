@@ -1,4 +1,8 @@
 const { getFormDefinition } = require("../forms/formRegistry");
+const {
+  isOtConsultReferred,
+  isPtConsultReferred,
+} = require("./mobilityReferrals");
 
 const activeStationOrder = [
   "reg",
@@ -194,11 +198,23 @@ const stationRegistry = {
       "geriPhysicalActivityLevel",
       "geriOtQuestionnaire",
       "geriSppb",
-      "geriPtConsult",
-      "geriOtConsult",
     ],
     eligibilityRule: "geriatricScreening",
     active: true,
+    isComplete: (record) => {
+      const inputs = record.stationEligibilityInputs || {};
+      const coreFormsComplete = [
+        "geriPhysicalActivityLevel",
+        "geriOtQuestionnaire",
+        "geriSppb",
+      ].every((formKey) => hasCompletedForm(record, formKey));
+      const ptComplete =
+        !isPtConsultReferred(inputs) || record.geriPtConsultForm !== undefined;
+      const otComplete =
+        !isOtConsultReferred(inputs) || record.geriOtConsultForm !== undefined;
+
+      return coreFormsComplete && ptComplete && otComplete;
+    },
   },
   ophthal: {
     key: "ophthal",

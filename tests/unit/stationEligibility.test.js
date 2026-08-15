@@ -234,8 +234,20 @@ describe("stationEligibility", () => {
 
     it("is eligible on a Geriatrics-OT referral", () => {
       expect(
-        isEligible("socialServices", { geriot: { geriOtConsultQ4: "Yes" } }),
+        isEligible("socialServices", {
+          gerihomefast: { geriOtQuestionnaireQ34: "Yes" },
+          geriot: { geriOtConsultQ4: "Yes" },
+        }),
       ).toBe(true);
+    });
+
+    it("ignores a stale OT referral when the OT consult gate is not active", () => {
+      expect(
+        isEligible("socialServices", {
+          gerihomefast: { geriOtQuestionnaireQ34: "No" },
+          geriot: { geriOtConsultQ4: "Yes" },
+        }),
+      ).toBe(false);
     });
 
     it("no longer uses the ophthal referral (OphthalQ13 dropped)", () => {
@@ -354,6 +366,15 @@ describe("stationEligibility", () => {
       ).toBe(true);
     });
 
+    it("is eligible on a WCE referral (independent of M4/M5)", () => {
+      expect(
+        isEligible("doctorStation", { wce: { wceQ13: "Yes" } }),
+      ).toBe(true);
+      expect(
+        isEligible("doctorStation", { wce: { wceQ13: "No" } }),
+      ).toBe(false);
+    });
+
     it("is eligible on a Mental Health referral (independent of M4/M5)", () => {
       expect(
         isEligible("doctorStation", { mentalhealth: { SAMH3: "Yes" } }),
@@ -376,14 +397,54 @@ describe("stationEligibility", () => {
 
     it("is eligible on a Physiotherapy referral (geriPtConsultQ2)", () => {
       expect(
-        isEligible("doctorStation", { geript: { geriPtConsultQ2: "Yes" } }),
+        isEligible("doctorStation", {
+          geriphysical: { geriPhysicalActivityLevelQ11: "Yes" },
+          geript: { geriPtConsultQ2: "Yes" },
+        }),
+      ).toBe(true);
+    });
+
+    it("is eligible on a Scoliosis referral (independent of M4/M5)", () => {
+      expect(
+        isEligible("doctorStation", {
+          scoliosisstation: { scoliosisQ3: "Yes" },
+        }),
+      ).toBe(true);
+      expect(
+        isEligible("doctorStation", {
+          scoliosisstation: { scoliosisQ3: "No" },
+        }),
+      ).toBe(false);
+    });
+
+    it("accepts SPPB as the other PT consult gate", () => {
+      expect(
+        isEligible("doctorStation", {
+          gerisppb: { geriSppbQ11: "Yes" },
+          geript: { geriPtConsultQ2: "Yes" },
+        }),
       ).toBe(true);
     });
 
     it("is eligible on an Occupational Therapy referral (geriOtConsultQ2)", () => {
       expect(
-        isEligible("doctorStation", { geriot: { geriOtConsultQ2: "Yes" } }),
+        isEligible("doctorStation", {
+          gerihomefast: { geriOtQuestionnaireQ34: "Yes" },
+          geriot: { geriOtConsultQ2: "Yes" },
+        }),
       ).toBe(true);
+    });
+
+    it("ignores stale PT and OT referrals when their consult gates are inactive", () => {
+      expect(
+        isEligible("doctorStation", {
+          geriphysical: { geriPhysicalActivityLevelQ11: "No" },
+          gerisppb: { geriSppbQ11: "No" },
+          gerihomefast: { geriOtQuestionnaireQ34: "No" },
+          geript: { geriPtConsultQ2: "Yes" },
+          geriot: { geriOtConsultQ2: "Yes" },
+        }),
+      ).toBe(false);
     });
 
     it("is not eligible with no forms (default deny)", () => {

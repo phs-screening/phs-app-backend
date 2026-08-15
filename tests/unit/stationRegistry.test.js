@@ -60,6 +60,43 @@ describe("station registry", () => {
     );
   });
 
+  it("requires mobility consult forms only for submitted Yes referrals", () => {
+    const corePatient = {
+      geriPhysicalActivityLevelForm: 22,
+      geriOtQuestionnaireForm: 22,
+      geriSppbForm: 22,
+      stationEligibilityInputs: {
+        geriphysical: { geriPhysicalActivityLevelQ11: "No" },
+        gerihomefast: { geriOtQuestionnaireQ34: "No" },
+        gerisppb: { geriSppbQ11: "No" },
+      },
+    };
+
+    expect(isStationComplete(corePatient, stationRegistry.gerimobility)).toBe(true);
+
+    const referredPatient = {
+      ...corePatient,
+      stationEligibilityInputs: {
+        geriphysical: { geriPhysicalActivityLevelQ11: "Yes" },
+        gerihomefast: { geriOtQuestionnaireQ34: "Yes" },
+        gerisppb: { geriSppbQ11: "No" },
+      },
+    };
+    expect(isStationComplete(referredPatient, stationRegistry.gerimobility)).toBe(false);
+    expect(
+      isStationComplete(
+        { ...referredPatient, geriPtConsultForm: 22 },
+        stationRegistry.gerimobility,
+      ),
+    ).toBe(false);
+    expect(
+      isStationComplete(
+        { ...referredPatient, geriPtConsultForm: 22, geriOtConsultForm: 22 },
+        stationRegistry.gerimobility,
+      ),
+    ).toBe(true);
+  });
+
   it("does not require LTFU for Screening Review completion", () => {
     const patient = { isEligibleForGrace: false };
     const prerequisiteStations = getStationDefinitions({

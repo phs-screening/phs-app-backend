@@ -2,7 +2,12 @@
 // deploy/startup, the server recomputes every patient's cached station counts
 // once so the Event Dashboard reflects the new rules. See eligibilityCacheSync.js.
 // (Form A / the Eligibility page always compute live, so they never need this.)
-const ELIGIBILITY_RULES_VERSION = 4;
+const {
+  isOtConsultReferred,
+  isPtConsultReferred,
+} = require("./mobilityReferrals");
+
+const ELIGIBILITY_RULES_VERSION = 7;
 
 const eligibilityRules = {
   healthierSg: ({ reg = {} }) => reg?.registrationQ11 !== "Yes",
@@ -53,12 +58,16 @@ const eligibilityRules = {
   // caregiver who feels unequipped), OR a referral from the Doctor's or the
   // Geriatrics-OT station. Those two referral flags are recorded at their own
   // stations, so this flips to eligible once that station logs the referral.
-  socialServices: ({ hxsocial = {}, doctorconsult = {}, geriot = {} }) =>
-    hxsocial?.SOCIAL6 === "Yes" ||
-    hxsocial?.SOCIAL7 === "Yes" ||
-    (hxsocial?.SOCIAL8 === "Yes" && hxsocial?.SOCIAL9 === "No") ||
-    doctorconsult?.doctorSConsultQ6 === "Yes" ||
-    geriot?.geriOtConsultQ4 === "Yes",
+  socialServices: (forms) => {
+    const { hxsocial = {}, doctorconsult = {}, geriot = {} } = forms;
+    return (
+      hxsocial?.SOCIAL6 === "Yes" ||
+      hxsocial?.SOCIAL7 === "Yes" ||
+      (hxsocial?.SOCIAL8 === "Yes" && hxsocial?.SOCIAL9 === "No") ||
+      doctorconsult?.doctorSConsultQ6 === "Yes" ||
+      (isOtConsultReferred(forms) && geriot?.geriOtConsultQ4 === "Yes")
+    );
+  },
 
   // Mental Health: PHQ-4 = PHQ-2 (depression: PHQ1+PHQ2) + GAD-2 (anxiety:
   // GAD1+GAD2). Eligible if PHQ-2 >= 3, OR GAD-2 >= 2, OR any suicidal ideation
@@ -124,39 +133,47 @@ const eligibilityRules = {
 
   // Doctor's Station: a History-Taking referral (the M4/M5 flag plus a specific
   // concern from triage / history scrutiny / PHQ), OR a referral logged at
-  // the Dietician (dietitiansConsultQ9), Mental Health (SAMH3), Ophthalmology
-  // (OphthalQ11), Audiometry (AudiometryQ11), Physiotherapy (geriPtConsultQ2) or
-  // Occupational Therapy (geriOtConsultQ2) station. Those station referrals are
+  // WCE (wceQ13), Scoliosis (scoliosisQ3), Dietician (dietitiansConsultQ9), Mental Health
+  // (SAMH3), Ophthalmology (OphthalQ11), Audiometry (AudiometryQ11), Physiotherapy
+  // (geriPtConsultQ2) or Occupational Therapy (geriOtConsultQ2). Those referrals are
   // independent — they don't require the M4/M5 gate.
   // Note: hxHcsrQ6 (systems-review scrutiny) is removed in the 2026 form; its
   // reworded hxHcsrQ7 ("HISTORY requires scrutiny") now covers that referral.
-  doctorStation: ({
-    triage = {},
-    hcsr = {},
-    hcsrreview = {},
-    phq = {},
-    hxm4m5 = {},
-    dietitiansconsult = {},
-    mentalhealth = {},
-    ophthal = {},
-    audio = {},
-    geript = {},
-    geriot = {},
-  }) =>
-    (hxm4m5?.hxM4M5Q1 === "Yes" &&
-      (triage?.triageQ9 === "Yes" ||
-        hcsrreview?.hxHcsrQ7 === "Yes" ||
-        hcsr?.hxHcsrQ7 === "Yes" ||
-        phq?.PHQ10 >= 10 ||
-        phq?.PHQ9 === "1 - Several days" ||
-        phq?.PHQ9 === "2 - More than half the days" ||
-        phq?.PHQ9 === "3 - Nearly everyday")) ||
-    dietitiansconsult?.dietitiansConsultQ9 === "Yes" ||
-    mentalhealth?.SAMH3 === "Yes" ||
-    ophthal?.OphthalQ11?.includes("Referred to Doctor's Station") ||
-    audio?.AudiometryQ11 === "Yes" ||
-    geript?.geriPtConsultQ2 === "Yes" ||
-    geriot?.geriOtConsultQ2 === "Yes",
+  doctorStation: (forms) => {
+    const {
+      triage = {},
+      hcsr = {},
+      hcsrreview = {},
+      phq = {},
+      hxm4m5 = {},
+      wce = {},
+      scoliosisstation = {},
+      dietitiansconsult = {},
+      mentalhealth = {},
+      ophthal = {},
+      audio = {},
+      geript = {},
+      geriot = {},
+    } = forms;
+    return (
+      (hxm4m5?.hxM4M5Q1 === "Yes" &&
+        (triage?.triageQ9 === "Yes" ||
+          hcsrreview?.hxHcsrQ7 === "Yes" ||
+          hcsr?.hxHcsrQ7 === "Yes" ||
+          phq?.PHQ10 >= 10 ||
+          phq?.PHQ9 === "1 - Several days" ||
+          phq?.PHQ9 === "2 - More than half the days" ||
+          phq?.PHQ9 === "3 - Nearly everyday")) ||
+      wce?.wceQ13 === "Yes" ||
+      scoliosisstation?.scoliosisQ3 === "Yes" ||
+      dietitiansconsult?.dietitiansConsultQ9 === "Yes" ||
+      mentalhealth?.SAMH3 === "Yes" ||
+      ophthal?.OphthalQ11?.includes("Referred to Doctor's Station") ||
+      audio?.AudiometryQ11 === "Yes" ||
+      (isPtConsultReferred(forms) && geript?.geriPtConsultQ2 === "Yes") ||
+      (isOtConsultReferred(forms) && geriot?.geriOtConsultQ2 === "Yes")
+    );
+  },
 
   // LTFU (long-term follow-up): age >= 60 with at least one of hypertension,
   // hyperlipidemia, diabetes, or heart disease (from PMHX5).

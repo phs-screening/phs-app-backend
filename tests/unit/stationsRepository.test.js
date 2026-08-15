@@ -19,12 +19,16 @@ const EXPECTED_KEY_TO_COLLECTION = {
   hxgynae: "gynaeForm",
   ophthal: "ophthalForm",
   hxscoliosis: "hxScoliosisForm",
+  scoliosisstation: "scoliosisForm",
   doctorconsult: "doctorConsultForm",
   geriot: "geriOtConsultForm",
   geript: "geriPtConsultForm",
   dietitiansconsult: "dietitiansConsultForm",
   mentalhealth: "mentalHealthForm",
   audio: "audiometryForm",
+  geriphysical: "geriPhysicalActivityLevelForm",
+  gerihomefast: "geriOtQuestionnaireForm",
+  gerisppb: "geriSppbForm",
 };
 
 describe("stations.repository findEligibilityForms wiring", () => {
