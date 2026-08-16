@@ -24,7 +24,9 @@
     "test:run": "vitest run",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest run --coverage",
-    "load:login": "k6 run tests/load/login.js"
+    "load:login": "k6 run tests/load/login.js",
+    "load:event": "k6 run tests/load/event-simulation.js",
+    "load:token": "node scripts/mintLoadTestToken.js"
   },
   "eslintConfig": {
     "extends": "react-app",
