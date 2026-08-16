@@ -264,11 +264,30 @@ describe("stationEligibility", () => {
   describe("hpv", () => {
     const eligible = {
       reg: { registrationQ5: "Female", registrationQ4: 30 },
-      hxgynae: { GYNAE14: "Yes", GYNAE15: "No", GYNAE16: "Yes" },
+      hxgynae: {
+        GYNAE12: "Never before",
+        GYNAE13: "Never before",
+        GYNAE14: "Yes",
+        GYNAE15: "No",
+        GYNAE16: "Yes",
+      },
     };
 
     it("is eligible for a woman >= 25, sexually active, not pregnant, in window", () => {
       expect(isEligible("hpv", eligible)).toBe(true);
+    });
+
+    it("is eligible when the last HPV test and Pap smear are past their intervals", () => {
+      expect(
+        isEligible("hpv", {
+          ...eligible,
+          hxgynae: {
+            ...eligible.hxgynae,
+            GYNAE12: "5 years or longer",
+            GYNAE13: "3 years or longer",
+          },
+        }),
+      ).toBe(true);
     });
 
     it("is not eligible for a male", () => {
@@ -298,6 +317,33 @@ describe("stationEligibility", () => {
       ).toBe(false);
       expect(
         isEligible("hpv", { ...eligible, hxgynae: { ...eligible.hxgynae, GYNAE16: "No" } }),
+      ).toBe(false);
+    });
+
+    it("is not eligible after an HPV test in the past 5 years", () => {
+      expect(
+        isEligible("hpv", {
+          ...eligible,
+          hxgynae: { ...eligible.hxgynae, GYNAE12: "Less than 5 years ago" },
+        }),
+      ).toBe(false);
+    });
+
+    it("is not eligible after a Pap smear in the past 3 years", () => {
+      expect(
+        isEligible("hpv", {
+          ...eligible,
+          hxgynae: { ...eligible.hxgynae, GYNAE13: "Within the last 3 years" },
+        }),
+      ).toBe(false);
+    });
+
+    it("is not eligible when a screening interval answer is missing (default deny)", () => {
+      expect(
+        isEligible("hpv", { ...eligible, hxgynae: { ...eligible.hxgynae, GYNAE12: "" } }),
+      ).toBe(false);
+      expect(
+        isEligible("hpv", { ...eligible, hxgynae: { ...eligible.hxgynae, GYNAE13: "" } }),
       ).toBe(false);
     });
 
@@ -464,12 +510,27 @@ describe("stationEligibility", () => {
       ).toBe(true);
     });
 
-    it("is eligible when GAD-2 (GAD1+GAD2) >= 2", () => {
+    it("is eligible when GAD-2 (GAD1+GAD2) >= 3", () => {
       expect(
         isEligible("mentalHealth", {
-          phq: { GAD1: "1 - Several days", GAD2: "1 - Several days" },
+          phq: {
+            GAD1: "2 - More than half the days",
+            GAD2: "1 - Several days",
+          },
         }),
       ).toBe(true);
+    });
+
+    it("is not eligible when GAD-2 is only 2 (cutoff is 3, not 2)", () => {
+      expect(
+        isEligible("mentalHealth", {
+          phq: {
+            GAD1: "1 - Several days",
+            GAD2: "1 - Several days",
+            PHQ11: "No",
+          },
+        }),
+      ).toBe(false);
     });
 
     it("is eligible on any suicidal ideation (PHQ9 >= 1)", () => {
