@@ -1,4 +1,4 @@
-const STATION_PROJECTION_VERSION = 6;
+const STATION_PROJECTION_VERSION = 7;
 
 // This is the reviewable dependency manifest for the eligibility rules. Keep
 // it in sync with stationEligibility.js and bump the projection version when
@@ -33,6 +33,8 @@ const eligibilityRuleDependencies = {
   hpv: [
     "reg.registrationQ4",
     "reg.registrationQ5",
+    "hxgynae.GYNAE12",
+    "hxgynae.GYNAE13",
     "hxgynae.GYNAE14",
     "hxgynae.GYNAE15",
     "hxgynae.GYNAE16",
@@ -123,7 +125,7 @@ const projectionDefinitions = {
   },
   gynaeForm: {
     alias: "hxgynae",
-    fields: ["GYNAE14", "GYNAE15", "GYNAE16"],
+    fields: ["GYNAE12", "GYNAE13", "GYNAE14", "GYNAE15", "GYNAE16"],
   },
   hxScoliosisForm: {
     alias: "hxscoliosis",

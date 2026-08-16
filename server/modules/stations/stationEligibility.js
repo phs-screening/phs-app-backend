@@ -7,7 +7,7 @@ const {
   isPtConsultReferred,
 } = require("./mobilityReferrals");
 
-const ELIGIBILITY_RULES_VERSION = 7;
+const ELIGIBILITY_RULES_VERSION = 9;
 
 const eligibilityRules = {
   healthierSg: ({ reg = {} }) => reg?.registrationQ11 !== "Yes",
@@ -70,8 +70,10 @@ const eligibilityRules = {
   },
 
   // Mental Health: PHQ-4 = PHQ-2 (depression: PHQ1+PHQ2) + GAD-2 (anxiety:
-  // GAD1+GAD2). Eligible if PHQ-2 >= 3, OR GAD-2 >= 2, OR any suicidal ideation
+  // GAD1+GAD2). Eligible if PHQ-2 >= 3, OR GAD-2 >= 3, OR any suicidal ideation
   // (PHQ9 >= 1), OR the history-taker judged counselling would benefit (PHQ11).
+  // The cutoff is 3 on both sub-scales; PHQ3-PHQ8 and GAD3-GAD7 are administered
+  // at the station itself rather than during history taking.
   // Answers are "0 - Not at all" ... "3 - Nearly everyday"; parseInt reads the
   // leading digit as the score.
   mentalHealth: ({ phq = {} }) => {
@@ -79,7 +81,7 @@ const eligibilityRules = {
     const phq2 = score(phq?.PHQ1) + score(phq?.PHQ2);
     const gad2 = score(phq?.GAD1) + score(phq?.GAD2);
     const suicidalIdeation = score(phq?.PHQ9) >= 1;
-    return phq2 >= 3 || gad2 >= 2 || suicidalIdeation || phq?.PHQ11 === "Yes";
+    return phq2 >= 3 || gad2 >= 3 || suicidalIdeation || phq?.PHQ11 === "Yes";
   },
 
   arthritis: () => true,
@@ -87,14 +89,28 @@ const eligibilityRules = {
   mammobus: ({ reg = {} }) => reg.registrationQ19 === "Yes",
 
   // HPV testing: women aged >= 25 who have ever had sexual intercourse (GYNAE14),
-  // are not pregnant (GYNAE15), and whose last menstrual period falls in the
-  // on-site testing window (GYNAE16 — the date is shown in the gynae form).
-  hpv: ({ reg = {}, hxgynae = {} }) =>
-    reg?.registrationQ5 === "Female" &&
-    reg?.registrationQ4 >= 25 &&
-    hxgynae?.GYNAE14 === "Yes" &&
-    hxgynae?.GYNAE15 === "No" &&
-    hxgynae?.GYNAE16 === "Yes",
+  // are due for screening — no HPV test in the past 5 years (GYNAE12) and no Pap
+  // smear in the past 3 years (GYNAE13) — are not pregnant (GYNAE15), and whose
+  // last menstrual period falls in the on-site testing window (GYNAE16 — the date
+  // is shown in the gynae form). The interval answers are allowlisted rather than
+  // negated so a blank or unrecognised answer stays not-eligible (default deny).
+  hpv: ({ reg = {}, hxgynae = {} }) => {
+    const noHpvInLastFiveYears =
+      hxgynae?.GYNAE12 === "Never before" ||
+      hxgynae?.GYNAE12 === "5 years or longer";
+    const noPapSmearInLastThreeYears =
+      hxgynae?.GYNAE13 === "Never before" ||
+      hxgynae?.GYNAE13 === "3 years or longer";
+    return (
+      reg?.registrationQ5 === "Female" &&
+      reg?.registrationQ4 >= 25 &&
+      hxgynae?.GYNAE14 === "Yes" &&
+      noHpvInLastFiveYears &&
+      noPapSmearInLastThreeYears &&
+      hxgynae?.GYNAE15 === "No" &&
+      hxgynae?.GYNAE16 === "Yes"
+    );
+  },
 
   audiometry: ({ reg = {}, hcsr = {} }) =>
     reg?.registrationQ4 >= 60 && hcsr?.hxHcsrQ5 === "No",
