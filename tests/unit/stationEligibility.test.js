@@ -421,10 +421,31 @@ describe("stationEligibility", () => {
       ).toBe(false);
     });
 
-    it("is eligible on a Mental Health referral (independent of M4/M5)", () => {
+    it("is eligible on an NTUC Mental Health referral (independent of M4/M5)", () => {
+      expect(
+        isEligible("doctorStation", { mentalhealth: { NTUC3: "Yes" } }),
+      ).toBe(true);
       expect(
         isEligible("doctorStation", { mentalhealth: { SAMH3: "Yes" } }),
       ).toBe(true);
+      expect(
+        isEligible("doctorStation", {
+          mentalhealth: { NTUC3: "No", SAMH3: "Yes" },
+        }),
+      ).toBe(false);
+    });
+
+    it("is eligible on a Podiatry referral", () => {
+      expect(
+        isEligible("doctorStation", {
+          podiatrystation: { podiatryQ3: "Yes" },
+        }),
+      ).toBe(true);
+      expect(
+        isEligible("doctorStation", {
+          podiatrystation: { podiatryQ3: "No" },
+        }),
+      ).toBe(false);
     });
 
     it("is eligible on an Ophthalmology referral (OphthalQ11)", () => {

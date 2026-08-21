@@ -79,11 +79,6 @@ function createFormsService({
       set.age = payload.registrationQ4;
     }
 
-    if (formCollection === "geriAmtForm") {
-      set.isEligibleForGrace =
-        payload.geriAmtQ12 === "Yes (Eligible for G-RACE)";
-    }
-
     const eligibilityInput = extractEligibilityInput(formCollection, payload);
     if (eligibilityInput) {
       set[`stationEligibilityInputs.${eligibilityInput.alias}`] =

@@ -182,12 +182,6 @@ const stationRegistry = {
     requiredForms: ["geriAmt"],
     eligibilityRule: "geriatricScreening",
     active: true,
-    isComplete: (record) =>
-      record.geriAmtForm !== undefined &&
-      record.isEligibleForGrace !== undefined &&
-      (record.isEligibleForGrace === false ||
-        (record.isEligibleForGrace === true &&
-          record.geriGraceForm !== undefined)),
   },
   gerimobility: {
     key: "gerimobility",
