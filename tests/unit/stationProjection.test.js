@@ -49,6 +49,25 @@ describe("station eligibility projection", () => {
       alias: "wce",
       data: { wceQ13: "Yes" },
     });
+    expect(
+      extractEligibilityInput("mentalHealthForm", {
+        NTUC3: "Yes",
+        SAMH3: "No",
+        NTUC2: "must not be copied",
+      }),
+    ).toEqual({
+      alias: "mentalhealth",
+      data: { NTUC3: "Yes", SAMH3: "No" },
+    });
+    expect(
+      extractEligibilityInput("podiatryForm", {
+        podiatryQ3: "Yes",
+        podiatryQ4: "must not be copied",
+      }),
+    ).toEqual({
+      alias: "podiatrystation",
+      data: { podiatryQ3: "Yes" },
+    });
   });
 
   it("produces the same eligibility from legacy forms and projected inputs", () => {
@@ -107,6 +126,8 @@ describe("station eligibility projection", () => {
         "scoliosisForm",
         "triageForm",
         "wceForm",
+        "mentalHealthForm",
+        "podiatryForm",
       ]),
     );
     for (const definition of Object.values(dependencies)) {

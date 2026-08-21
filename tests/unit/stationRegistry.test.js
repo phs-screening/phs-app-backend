@@ -60,6 +60,20 @@ describe("station registry", () => {
     );
   });
 
+  it("marks 365 Cancer Screening complete after either answer is submitted", () => {
+    expect(isStationComplete({}, stationRegistry.cancer365)).toBe(false);
+    expect(
+      isStationComplete({ cancer365Form: 22 }, stationRegistry.cancer365),
+    ).toBe(true);
+  });
+
+  it("requires only AMT to complete Geriatrics Cognitive", () => {
+    expect(isStationComplete({}, stationRegistry.gericog)).toBe(false);
+    expect(
+      isStationComplete({ geriAmtForm: 22 }, stationRegistry.gericog),
+    ).toBe(true);
+  });
+
   it("requires mobility consult forms only for submitted Yes referrals", () => {
     const corePatient = {
       geriPhysicalActivityLevelForm: 22,
@@ -98,7 +112,7 @@ describe("station registry", () => {
   });
 
   it("does not require LTFU for Screening Review completion", () => {
-    const patient = { isEligibleForGrace: false };
+    const patient = {};
     const prerequisiteStations = getStationDefinitions({
       activeOnly: true,
     }).filter(({ key }) => key !== "screeningreview" && key !== "ltfu");

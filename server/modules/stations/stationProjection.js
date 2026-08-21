@@ -1,4 +1,4 @@
-const STATION_PROJECTION_VERSION = 7;
+const STATION_PROJECTION_VERSION = 8;
 
 // This is the reviewable dependency manifest for the eligibility rules. Keep
 // it in sync with stationEligibility.js and bump the projection version when
@@ -68,7 +68,9 @@ const eligibilityRuleDependencies = {
     "wce.wceQ13",
     "scoliosisstation.scoliosisQ3",
     "dietitiansconsult.dietitiansConsultQ9",
+    "mentalhealth.NTUC3",
     "mentalhealth.SAMH3",
+    "podiatrystation.podiatryQ3",
     "ophthal.OphthalQ11",
     "audio.AudiometryQ11",
     "geript.geriPtConsultQ2",
@@ -164,7 +166,8 @@ const projectionDefinitions = {
     alias: "dietitiansconsult",
     fields: ["dietitiansConsultQ9"],
   },
-  mentalHealthForm: { alias: "mentalhealth", fields: ["SAMH3"] },
+  mentalHealthForm: { alias: "mentalhealth", fields: ["NTUC3", "SAMH3"] },
+  podiatryForm: { alias: "podiatrystation", fields: ["podiatryQ3"] },
   audiometryForm: { alias: "audio", fields: ["AudiometryQ11"] },
 };
 

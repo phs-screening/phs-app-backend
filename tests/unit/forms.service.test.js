@@ -187,20 +187,20 @@ describe("forms.service", () => {
       ).not.toHaveProperty("ignoredAnswer");
     });
 
-    it("updates G-RACE eligibility in the combined patient update", async () => {
+    it("does not derive obsolete G-RACE eligibility from AMT", async () => {
       const { service, formsRepository } = createService();
 
       await service.submitForm(
         "geriAmtForm",
         22,
-        { geriAmtQ12: "Yes (Eligible for G-RACE)" },
+        { geriAmtQ12: "Yes" },
         { is_admin: false },
       );
 
       expect(formsRepository.updatePatientAfterForm).toHaveBeenCalledWith(
         22,
         expect.objectContaining({
-          $set: expect.objectContaining({ isEligibleForGrace: true }),
+          $set: expect.not.objectContaining({ isEligibleForGrace: expect.anything() }),
         }),
       );
     });

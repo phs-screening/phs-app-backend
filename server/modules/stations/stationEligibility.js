@@ -7,7 +7,7 @@ const {
   isPtConsultReferred,
 } = require("./mobilityReferrals");
 
-const ELIGIBILITY_RULES_VERSION = 9;
+const ELIGIBILITY_RULES_VERSION = 10;
 
 const eligibilityRules = {
   healthierSg: ({ reg = {} }) => reg?.registrationQ11 !== "Yes",
@@ -150,7 +150,8 @@ const eligibilityRules = {
   // Doctor's Station: a History-Taking referral (the M4/M5 flag plus a specific
   // concern from triage / history scrutiny / PHQ), OR a referral logged at
   // WCE (wceQ13), Scoliosis (scoliosisQ3), Dietician (dietitiansConsultQ9), Mental Health
-  // (SAMH3), Ophthalmology (OphthalQ11), Audiometry (AudiometryQ11), Physiotherapy
+  // (NTUC3; legacy SAMH3 is still accepted), Podiatry (podiatryQ3), Ophthalmology
+  // (OphthalQ11), Audiometry (AudiometryQ11), Physiotherapy
   // (geriPtConsultQ2) or Occupational Therapy (geriOtConsultQ2). Those referrals are
   // independent — they don't require the M4/M5 gate.
   // Note: hxHcsrQ6 (systems-review scrutiny) is removed in the 2026 form; its
@@ -166,6 +167,7 @@ const eligibilityRules = {
       scoliosisstation = {},
       dietitiansconsult = {},
       mentalhealth = {},
+      podiatrystation = {},
       ophthal = {},
       audio = {},
       geript = {},
@@ -183,7 +185,8 @@ const eligibilityRules = {
       wce?.wceQ13 === "Yes" ||
       scoliosisstation?.scoliosisQ3 === "Yes" ||
       dietitiansconsult?.dietitiansConsultQ9 === "Yes" ||
-      mentalhealth?.SAMH3 === "Yes" ||
+      (mentalhealth?.NTUC3 ?? mentalhealth?.SAMH3) === "Yes" ||
+      podiatrystation?.podiatryQ3 === "Yes" ||
       ophthal?.OphthalQ11?.includes("Referred to Doctor's Station") ||
       audio?.AudiometryQ11 === "Yes" ||
       (isPtConsultReferred(forms) && geript?.geriPtConsultQ2 === "Yes") ||
